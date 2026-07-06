@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient, queryOptions } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { Heart, Calendar, Clock, Phone, User, Stethoscope, Sparkles, History, Plus } from "lucide-react";
+import { Heart, Calendar, Clock, Phone, User, Stethoscope, Sparkles, History, Plus, Trash2 } from "lucide-react";
 import { bookAppointment, listAppointments } from "@/lib/appointments.functions";
 import { toast, Toaster } from "sonner";
 
