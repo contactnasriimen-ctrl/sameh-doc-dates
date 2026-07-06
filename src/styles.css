@@ -36,37 +36,37 @@
 :root {
   --radius: 1.25rem;
 
-  /* Cute soft pink & mint palette */
-  --background: oklch(0.985 0.012 20);
-  --foreground: oklch(0.32 0.05 350);
+  /* Warm gold palette */
+  --background: oklch(0.985 0.012 80);
+  --foreground: oklch(0.30 0.06 75);
 
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.32 0.05 350);
+  --card-foreground: oklch(0.30 0.06 75);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.32 0.05 350);
+  --popover-foreground: oklch(0.30 0.06 75);
 
-  --primary: oklch(0.72 0.15 15);          /* coral pink */
-  --primary-foreground: oklch(0.99 0.005 15);
+  --primary: oklch(0.72 0.16 80);          /* rich gold */
+  --primary-foreground: oklch(0.99 0.01 80);
 
-  --secondary: oklch(0.94 0.05 170);       /* soft mint */
-  --secondary-foreground: oklch(0.35 0.08 170);
+  --secondary: oklch(0.95 0.04 80);       /* soft cream gold */
+  --secondary-foreground: oklch(0.35 0.08 75);
 
-  --muted: oklch(0.96 0.015 20);
-  --muted-foreground: oklch(0.55 0.04 350);
+  --muted: oklch(0.96 0.015 80);
+  --muted-foreground: oklch(0.55 0.05 75);
 
-  --accent: oklch(0.92 0.08 55);           /* peachy */
-  --accent-foreground: oklch(0.35 0.08 40);
+  --accent: oklch(0.88 0.10 70);           /* warm amber */
+  --accent-foreground: oklch(0.30 0.08 70);
 
   --destructive: oklch(0.62 0.22 25);
   --destructive-foreground: oklch(0.99 0 0);
 
-  --border: oklch(0.92 0.02 20);
-  --input: oklch(0.94 0.02 20);
-  --ring: oklch(0.72 0.15 15);
+  --border: oklch(0.92 0.02 80);
+  --input: oklch(0.94 0.02 80);
+  --ring: oklch(0.72 0.16 80);
 
-  --gradient-bg: linear-gradient(160deg, oklch(0.97 0.03 340) 0%, oklch(0.97 0.04 180) 100%);
-  --gradient-primary: linear-gradient(135deg, oklch(0.78 0.14 15) 0%, oklch(0.75 0.12 355) 100%);
-  --shadow-cute: 0 10px 30px -10px oklch(0.72 0.15 15 / 0.35);
+  --gradient-bg: linear-gradient(160deg, oklch(0.98 0.02 75) 0%, oklch(0.97 0.03 85) 100%);
+  --gradient-primary: linear-gradient(135deg, oklch(0.78 0.15 75) 0%, oklch(0.72 0.14 85) 100%);
+  --shadow-cute: 0 10px 30px -10px oklch(0.72 0.16 80 / 0.35);
 }
 
 @layer base {
