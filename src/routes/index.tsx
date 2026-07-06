@@ -92,7 +92,12 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
   });
 
   const mutation = useMutation({
-    mutationFn: (payload: Parameters<typeof book>[0]["data"]) => book({ data: payload }),
+    mutationFn: (payload: {
+      patient_name: string;
+      phone: string;
+      appointment_at: string;
+      reason?: string | null;
+    }) => book({ data: payload }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["appointments"] });
       toast.success("Rendez-vous confirmé ! 🌷");
