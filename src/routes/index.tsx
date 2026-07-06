@@ -2,8 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient, queryOptions } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { Heart, Calendar, Clock, Phone, User, Stethoscope, Sparkles, History, Plus } from "lucide-react";
-import { bookAppointment, listAppointments } from "@/lib/appointments.functions";
+import { Heart, Calendar, Clock, Phone, User, Stethoscope, Sparkles, History, Plus, Trash2 } from "lucide-react";
+import { bookAppointment, listAppointments, deleteAppointment } from "@/lib/appointments.functions";
 import { toast, Toaster } from "sonner";
 
 const appointmentsQO = () =>
@@ -219,7 +219,18 @@ function Field({
 }
 
 function HistoryList() {
+  const qc = useQueryClient();
   const { data, isLoading } = useQuery(appointmentsQO());
+  const del = useServerFn(deleteAppointment);
+
+  const delMutation = useMutation({
+    mutationFn: (id: string) => del({ data: { id } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["appointments"] });
+      toast.success("Rendez-vous supprimé 🗑️");
+    },
+    onError: (e: Error) => toast.error(e.message || "Erreur"),
+  });
 
   if (isLoading) {
     return <div className="bg-card rounded-3xl p-8 text-center text-muted-foreground">Chargement...</div>;
@@ -285,6 +296,14 @@ function HistoryList() {
                 <p className="text-sm mt-2 bg-muted rounded-xl px-3 py-2">{a.reason}</p>
               )}
             </div>
+            <button
+              onClick={() => delMutation.mutate(a.id)}
+              disabled={delMutation.isPending}
+              className="flex-shrink-0 self-start p-2 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+              title="Supprimer"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
           </div>
         );
       })}

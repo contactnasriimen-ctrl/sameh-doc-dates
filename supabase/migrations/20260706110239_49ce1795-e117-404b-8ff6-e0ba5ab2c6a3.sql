@@ -1,0 +1,1 @@
+CREATE POLICY "Anyone can delete appointments" ON public.appointments FOR DELETE TO public USING (true);

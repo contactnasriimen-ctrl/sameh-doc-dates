@@ -56,3 +56,15 @@ export const listAppointments = createServerFn({ method: "GET" }).handler(
     return data ?? [];
   },
 );
+
+export const deleteAppointment = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => z.object({ id: z.string().uuid() }).parse(data))
+  .handler(async ({ data }) => {
+    const supabase = getClient();
+    const { error } = await supabase
+      .from("appointments")
+      .delete()
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
