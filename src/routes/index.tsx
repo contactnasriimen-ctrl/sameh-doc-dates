@@ -191,7 +191,7 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
         .cute-input:focus {
           border-color: var(--color-primary);
           background: var(--color-card);
-          box-shadow: 0 0 0 4px oklch(0.72 0.15 15 / 0.12);
+          box-shadow: 0 0 0 4px oklch(0.72 0.16 80 / 0.12);
         }
       `}</style>
     </form>
