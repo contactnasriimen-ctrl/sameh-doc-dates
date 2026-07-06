@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient, queryOptions } from "@tanstack/r
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { Heart, Calendar, Clock, Phone, User, Stethoscope, Sparkles, History, Plus, Trash2 } from "lucide-react";
-import { bookAppointment, listAppointments } from "@/lib/appointments.functions";
+import { bookAppointment, listAppointments, deleteAppointment } from "@/lib/appointments.functions";
 import { toast, Toaster } from "sonner";
 
 const appointmentsQO = () =>
