@@ -552,3 +552,275 @@ function MedicalFile({ appt }: { appt: Appointment }) {
     </div>
   );
 }
+
+// ============================================================
+// PATIENT RECORDS — Dedicated doctor-only interface
+// Groups appointments by patient name and shows a full medical file
+// ============================================================
+
+type PatientGroup = {
+  name: string;
+  appointments: Appointment[];
+  lastVisit: Date | null;
+};
+
+function groupByPatient(appts: Appointment[]): PatientGroup[] {
+  const map = new Map<string, Appointment[]>();
+  for (const a of appts) {
+    const key = (a.patient_name || "Sans nom").trim();
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(a);
+  }
+  return Array.from(map.entries())
+    .map(([name, list]) => {
+      const dates = list
+        .map((a) => (a.appointment_at ? new Date(a.appointment_at).getTime() : 0))
+        .filter((n) => n > 0);
+      const lastVisit = dates.length ? new Date(Math.max(...dates)) : null;
+      return { name, appointments: list, lastVisit };
+    })
+    .sort((a, b) => {
+      const at = a.lastVisit?.getTime() ?? 0;
+      const bt = b.lastVisit?.getTime() ?? 0;
+      return bt - at;
+    });
+}
+
+function PatientRecords() {
+  const { data, isLoading } = useQuery(appointmentsQO());
+  const [selected, setSelected] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+
+  if (isLoading) {
+    return <div className="bg-card rounded-3xl p-8 text-center text-muted-foreground">Chargement...</div>;
+  }
+  const groups = groupByPatient((data ?? []) as Appointment[]);
+  const filtered = search
+    ? groups.filter((g) => g.name.toLowerCase().includes(search.toLowerCase()))
+    : groups;
+
+  if (selected) {
+    const group = groups.find((g) => g.name === selected);
+    if (!group) {
+      setSelected(null);
+      return null;
+    }
+    return <PatientDetail group={group} onBack={() => setSelected(null)} />;
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="bg-card rounded-3xl p-4 border border-border shadow-sm">
+        <div className="relative">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Rechercher un patient..."
+            className="cute-input pl-9"
+          />
+        </div>
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="bg-card rounded-3xl p-8 text-center border border-border">
+          <div className="mx-auto w-14 h-14 rounded-2xl bg-secondary flex items-center justify-center mb-3">
+            <FolderHeart className="w-6 h-6 text-secondary-foreground" />
+          </div>
+          <p className="font-semibold">Aucun patient</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            {search ? "Aucun résultat" : "Les fiches apparaîtront ici 🌸"}
+          </p>
+        </div>
+      ) : (
+        filtered.map((g) => (
+          <button
+            key={g.name}
+            onClick={() => setSelected(g.name)}
+            className="bg-card rounded-2xl p-4 border border-border shadow-sm text-left hover:border-primary transition-colors flex items-center gap-3"
+          >
+            <div
+              className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-lg flex-shrink-0"
+              style={{ backgroundImage: "var(--gradient-primary)" }}
+            >
+              {g.name.charAt(0).toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold truncate">{g.name}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {g.appointments.length} rendez-vous
+                {g.lastVisit && ` • dernier ${g.lastVisit.toLocaleDateString("fr-FR")}`}
+              </p>
+            </div>
+            <ChevronDown className="w-4 h-4 text-muted-foreground -rotate-90" />
+          </button>
+        ))
+      )}
+    </div>
+  );
+}
+
+function PatientDetail({ group, onBack }: { group: PatientGroup; onBack: () => void }) {
+  // Master medical file = most recent appointment (or first if none dated)
+  const master =
+    [...group.appointments].sort((a, b) => {
+      const at = a.appointment_at ? new Date(a.appointment_at).getTime() : 0;
+      const bt = b.appointment_at ? new Date(b.appointment_at).getTime() : 0;
+      return bt - at;
+    })[0] ?? group.appointments[0];
+
+  const qc = useQueryClient();
+  const update = useServerFn(updateAppointment);
+  const [form, setForm] = useState({
+    diagnosis: master.diagnosis ?? "",
+    treatment: master.treatment ?? "",
+    medical_history: master.medical_history ?? "",
+    allergies: master.allergies ?? "",
+    private_notes: master.private_notes ?? "",
+  });
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      update({
+        data: {
+          id: master.id,
+          patient_name: master.patient_name,
+          phone: master.phone,
+          appointment_at: master.appointment_at,
+          reason: master.reason,
+          ...form,
+        },
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["appointments"] });
+      toast.success("Fiche patient enregistrée 💾");
+    },
+    onError: (e: Error) => toast.error(e.message || "Erreur"),
+  });
+
+  const bigField = (
+    key: keyof typeof form,
+    label: string,
+    icon: React.ReactNode,
+    placeholder: string,
+  ) => (
+    <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+      <div className="px-4 py-2.5 bg-primary/5 border-b border-border flex items-center gap-2">
+        <div className="text-primary">{icon}</div>
+        <span className="text-xs font-bold text-primary uppercase tracking-wide">{label}</span>
+      </div>
+      <textarea
+        value={form[key]}
+        onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+        placeholder={placeholder}
+        rows={3}
+        className="w-full px-4 py-3 text-sm bg-transparent outline-none resize-none"
+      />
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Patient header */}
+      <div
+        className="rounded-3xl p-5 text-white shadow-[var(--shadow-cute)] relative overflow-hidden"
+        style={{ backgroundImage: "var(--gradient-primary)" }}
+      >
+        <button
+          onClick={onBack}
+          className="absolute top-4 right-4 w-9 h-9 rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur flex items-center justify-center"
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </button>
+        <div className="flex items-center gap-3">
+          <div className="w-16 h-16 rounded-2xl bg-white/25 backdrop-blur flex items-center justify-center text-2xl font-bold">
+            {group.name.charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <p className="text-xs opacity-90 font-medium flex items-center gap-1">
+              <Lock className="w-3 h-3" /> Fiche confidentielle
+            </p>
+            <h2 className="text-xl font-bold leading-tight">{group.name}</h2>
+            {master.phone && (
+              <p className="text-xs opacity-90 mt-0.5 flex items-center gap-1">
+                <Phone className="w-3 h-3" /> {master.phone}
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-2 text-center">
+          <div className="bg-white/15 backdrop-blur rounded-xl py-2">
+            <p className="text-lg font-bold leading-none">{group.appointments.length}</p>
+            <p className="text-[10px] opacity-90 mt-1">Consultations</p>
+          </div>
+          <div className="bg-white/15 backdrop-blur rounded-xl py-2">
+            <p className="text-xs font-bold leading-none pt-1">
+              {group.lastVisit ? group.lastVisit.toLocaleDateString("fr-FR") : "—"}
+            </p>
+            <p className="text-[10px] opacity-90 mt-1">Dernière visite</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Medical file */}
+      {bigField("diagnosis", "Diagnostic", <ClipboardList className="w-4 h-4" />, "Diagnostic médical actuel...")}
+      {bigField("treatment", "Traitement", <Pill className="w-4 h-4" />, "Médicaments prescrits, posologie, durée...")}
+      {bigField("medical_history", "Antécédents", <History className="w-4 h-4" />, "Historique médical, chirurgies passées...")}
+      {bigField("allergies", "Allergies", <AlertTriangle className="w-4 h-4" />, "Médicaments, aliments, environnement...")}
+      {bigField("private_notes", "Notes privées", <NotebookPen className="w-4 h-4" />, "Observations confidentielles du docteur...")}
+
+      <button
+        onClick={() => mutation.mutate()}
+        disabled={mutation.isPending}
+        className="py-3.5 rounded-2xl text-white font-semibold shadow-[var(--shadow-cute)] transition-transform active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2 sticky bottom-4"
+        style={{ backgroundImage: "var(--gradient-primary)" }}
+      >
+        <Save className="w-4 h-4" />
+        {mutation.isPending ? "Enregistrement..." : "Enregistrer la fiche patient"}
+      </button>
+
+      {/* Consultations history */}
+      <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+        <div className="px-4 py-3 border-b border-border flex items-center gap-2">
+          <History className="w-4 h-4 text-primary" />
+          <span className="text-sm font-semibold">Historique des consultations</span>
+        </div>
+        <div className="divide-y divide-border">
+          {group.appointments
+            .slice()
+            .sort((a, b) => {
+              const at = a.appointment_at ? new Date(a.appointment_at).getTime() : 0;
+              const bt = b.appointment_at ? new Date(b.appointment_at).getTime() : 0;
+              return bt - at;
+            })
+            .map((a) => {
+              const dt = a.appointment_at ? new Date(a.appointment_at) : null;
+              return (
+                <div key={a.id} className="px-4 py-3 flex items-start gap-3">
+                  <Calendar className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">
+                      {dt
+                        ? dt.toLocaleString("fr-FR", {
+                            weekday: "short", day: "numeric", month: "short", year: "numeric",
+                            hour: "2-digit", minute: "2-digit",
+                          })
+                        : "Date non renseignée"}
+                    </p>
+                    {a.reason && (
+                      <p className="text-xs text-muted-foreground mt-0.5">{a.reason}</p>
+                    )}
+                  </div>
+                  {a.id === master.id && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/15 text-primary font-semibold">
+                      Fiche
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+        </div>
+      </div>
+    </div>
+  );
+}
