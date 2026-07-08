@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import {
   Heart, Calendar, Clock, Phone, User, Stethoscope, Sparkles,
   History, Plus, Trash2, Lock, LogOut, FileText, ChevronDown, ChevronUp, Save,
+  FolderHeart, ArrowLeft, Search, Pill, AlertTriangle, ClipboardList, NotebookPen,
 } from "lucide-react";
 import {
   bookAppointment, listAppointments, deleteAppointment, updateAppointment,
@@ -17,7 +18,7 @@ const PIN_SECRETARY = "0000";
 const ROLE_KEY = "cabinet_role_v1";
 
 type Role = "doctor" | "secretary";
-type Tab = "book" | "history";
+type Tab = "book" | "history" | "records";
 
 const appointmentsQO = () =>
   queryOptions({
