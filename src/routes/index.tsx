@@ -60,12 +60,10 @@ function Home() {
         ) : (
           <>
             <Header role={role} onLogout={logout} />
-            <Tabs tab={tab} setTab={setTab} />
-            {tab === "book" ? (
-              <BookForm onBooked={() => setTab("history")} />
-            ) : (
-              <HistoryList role={role} />
-            )}
+            <Tabs tab={tab} setTab={setTab} role={role} />
+            {tab === "book" && <BookForm onBooked={() => setTab("history")} />}
+            {tab === "history" && <HistoryList role={role} />}
+            {tab === "records" && role === "doctor" && <PatientRecords />}
             <p className="text-center text-xs text-muted-foreground mt-2 flex items-center justify-center gap-1">
               Fait avec <Heart className="w-3 h-3 fill-primary text-primary" /> pour Dr. Sameh
             </p>
