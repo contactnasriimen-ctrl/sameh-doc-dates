@@ -192,21 +192,26 @@ function Header({ role, onLogout }: { role: Role; onLogout: () => void }) {
   );
 }
 
-function Tabs({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
+function Tabs({ tab, setTab, role }: { tab: Tab; setTab: (t: Tab) => void; role: Role }) {
   const btn = (active: boolean) =>
-    `flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-semibold transition-all ${
+    `flex-1 flex items-center justify-center gap-1.5 py-3 rounded-2xl text-xs font-semibold transition-all ${
       active
         ? "bg-white text-primary shadow-[var(--shadow-cute)]"
         : "text-muted-foreground hover:text-foreground"
     }`;
   return (
-    <div className="flex gap-2 p-1.5 bg-white/60 backdrop-blur rounded-3xl border border-border">
+    <div className="flex gap-1.5 p-1.5 bg-white/60 backdrop-blur rounded-3xl border border-border">
       <button className={btn(tab === "book")} onClick={() => setTab("book")}>
         <Plus className="w-4 h-4" /> Nouveau
       </button>
       <button className={btn(tab === "history")} onClick={() => setTab("history")}>
-        <History className="w-4 h-4" /> Historique
+        <History className="w-4 h-4" /> RDV
       </button>
+      {role === "doctor" && (
+        <button className={btn(tab === "records")} onClick={() => setTab("records")}>
+          <FolderHeart className="w-4 h-4" /> Fiches
+        </button>
+      )}
     </div>
   );
 }
