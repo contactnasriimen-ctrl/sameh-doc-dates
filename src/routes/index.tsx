@@ -6,6 +6,7 @@ import {
   Heart, Calendar, Clock, Phone, User, Stethoscope, Sparkles,
   History, Plus, Trash2, Lock, LogOut, FileText, ChevronDown, ChevronUp, Save,
   FolderHeart, ArrowLeft, Search, Pill, AlertTriangle, ClipboardList, NotebookPen,
+  Pencil, X,
 } from "lucide-react";
 import {
   bookAppointment, listAppointments, deleteAppointment, updateAppointment,
