@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "sdk_version": "0.24.0",
+  "path": "/mcp",
+  "auth": {
+    "type": "none"
+  },
+  "mcp": {
+    "server": {
+      "name": "sameh-appointments-mcp",
+      "version": "0.1.0",
+      "title": "Dr. Sameh Appointments"
+    },
+    "tools": [
+      {
+        "name": "list_appointments",
+        "title": "List appointments",
+        "description": "List all appointments for Dr. Sameh, most recent first.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "description": "Maximum number of appointments to return (default 50)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "create_appointment",
+        "title": "Create appointment",
+        "description": "Book a new appointment for Dr. Sameh. All fields are optional; provide at least a patient name or phone.",
+        "annotations": {
+          "readOnlyHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "patient_name": {
+              "type": "string",
+              "maxLength": 100
+            },
+            "phone": {
+              "type": "string",
+              "maxLength": 30
+            },
+            "appointment_at": {
+              "type": "string",
+              "description": "ISO 8601 datetime of the appointment."
+            },
+            "reason": {
+              "type": "string",
+              "maxLength": 500
+            },
+            "diagnosis": {
+              "type": "string",
+              "maxLength": 2000
+            },
+            "treatment": {
+              "type": "string",
+              "maxLength": 2000
+            },
+            "medical_history": {
+              "type": "string",
+              "maxLength": 2000
+            },
+            "allergies": {
+              "type": "string",
+              "maxLength": 1000
+            },
+            "private_notes": {
+              "type": "string",
+              "maxLength": 2000
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "delete_appointment",
+        "title": "Delete appointment",
+        "description": "Delete an appointment by its ID.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Appointment ID to delete."
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
