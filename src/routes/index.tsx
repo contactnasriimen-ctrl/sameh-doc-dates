@@ -360,10 +360,113 @@ type Appointment = {
   created_at: string;
 };
 
+const dayKey = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+function MonthCalendar({
+  appts, selected, onSelect,
+}: {
+  appts: Appointment[];
+  selected: string | null;
+  onSelect: (k: string | null) => void;
+}) {
+  const [cursor, setCursor] = useState(() => {
+    const n = new Date();
+    return new Date(n.getFullYear(), n.getMonth(), 1);
+  });
+
+  const counts = new Map<string, number>();
+  for (const a of appts) {
+    if (!a.appointment_at) continue;
+    const k = dayKey(new Date(a.appointment_at));
+    counts.set(k, (counts.get(k) ?? 0) + 1);
+  }
+
+  const year = cursor.getFullYear();
+  const month = cursor.getMonth();
+  const first = new Date(year, month, 1);
+  const offset = (first.getDay() + 6) % 7; // lundi = 0
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cells: (Date | null)[] = [
+    ...Array.from({ length: offset }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, i) => new Date(year, month, i + 1)),
+  ];
+  const todayKey = dayKey(new Date());
+
+  return (
+    <div className="bg-card rounded-3xl border border-border shadow-sm p-4">
+      <div className="flex items-center justify-between mb-3">
+        <button
+          onClick={() => setCursor(new Date(year, month - 1, 1))}
+          className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10"
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </button>
+        <span className="font-bold capitalize">
+          {cursor.toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}
+        </span>
+        <button
+          onClick={() => setCursor(new Date(year, month + 1, 1))}
+          className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10"
+        >
+          <ArrowLeft className="w-4 h-4 rotate-180" />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-7 gap-1 mb-1">
+        {["L", "M", "M", "J", "V", "S", "D"].map((d, i) => (
+          <span key={i} className="text-[10px] font-semibold text-muted-foreground text-center py-1">
+            {d}
+          </span>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-1">
+        {cells.map((d, i) => {
+          if (!d) return <span key={`e${i}`} />;
+          const k = dayKey(d);
+          const n = counts.get(k) ?? 0;
+          const isSel = selected === k;
+          return (
+            <button
+              key={k}
+              onClick={() => onSelect(isSel ? null : k)}
+              className={`aspect-square rounded-xl flex flex-col items-center justify-center text-sm transition-colors ${
+                isSel
+                  ? "bg-primary text-primary-foreground font-bold"
+                  : n > 0
+                    ? "bg-secondary text-secondary-foreground font-semibold"
+                    : "hover:bg-muted text-foreground/70"
+              } ${k === todayKey && !isSel ? "ring-2 ring-primary/50" : ""}`}
+            >
+              {d.getDate()}
+              <span
+                className={`w-1 h-1 rounded-full mt-0.5 ${
+                  n > 0 ? (isSel ? "bg-primary-foreground" : "bg-primary") : "bg-transparent"
+                }`}
+              />
+            </button>
+          );
+        })}
+      </div>
+
+      {selected && (
+        <button
+          onClick={() => onSelect(null)}
+          className="mt-3 w-full text-xs font-semibold text-primary py-2 rounded-xl hover:bg-primary/5"
+        >
+          Voir tous les rendez-vous
+        </button>
+      )}
+    </div>
+  );
+}
+
 function HistoryList({ role }: { role: Role }) {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery(appointmentsQO());
   const del = useServerFn(deleteAppointment);
+  const [selected, setSelected] = useState<string | null>(null);
 
   const delMutation = useMutation({
     mutationFn: (id: string) => del({ data: { id } }),
@@ -389,20 +492,46 @@ function HistoryList({ role }: { role: Role }) {
     );
   }
 
+  const all = data as Appointment[];
+  const sorted = [...all].sort((a, b) => {
+    const ta = a.appointment_at ? new Date(a.appointment_at).getTime() : Infinity;
+    const tb = b.appointment_at ? new Date(b.appointment_at).getTime() : Infinity;
+    return ta - tb;
+  });
+  const list = selected
+    ? sorted.filter((a) => a.appointment_at && dayKey(new Date(a.appointment_at)) === selected)
+    : sorted;
+
   return (
     <div className="flex flex-col gap-3">
-      {(data as Appointment[]).map((a) => (
-        <AppointmentCard
-          key={a.id}
-          appt={a}
-          role={role}
-          onDelete={() => delMutation.mutate(a.id)}
-          deleting={delMutation.isPending}
-        />
-      ))}
+      <MonthCalendar appts={all} selected={selected} onSelect={setSelected} />
+      {selected && (
+        <p className="text-xs font-semibold text-muted-foreground px-1">
+          {list.length} rendez-vous le{" "}
+          {new Date(`${selected}T00:00:00`).toLocaleDateString("fr-FR", {
+            weekday: "long", day: "numeric", month: "long",
+          })}
+        </p>
+      )}
+      {list.length === 0 ? (
+        <div className="bg-card rounded-2xl border border-border p-6 text-center text-sm text-muted-foreground">
+          Aucun rendez-vous ce jour-là.
+        </div>
+      ) : (
+        list.map((a) => (
+          <AppointmentCard
+            key={a.id}
+            appt={a}
+            role={role}
+            onDelete={() => delMutation.mutate(a.id)}
+            deleting={delMutation.isPending}
+          />
+        ))
+      )}
     </div>
   );
 }
+
 
 function AppointmentCard({
   appt, role, onDelete, deleting,
