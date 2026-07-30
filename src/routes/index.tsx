@@ -104,10 +104,10 @@ function PinGate({ onLogin }: { onLogin: (r: Role) => void }) {
         <div className="absolute -top-6 -right-6 opacity-20">
           <Sparkles className="w-24 h-24" />
         </div>
-        <div className="w-14 h-14 rounded-2xl bg-white/25 backdrop-blur flex items-center justify-center mb-3">
-          <Lock className="w-7 h-7" />
+        <div className="w-20 h-20 rounded-3xl bg-white/90 backdrop-blur flex items-center justify-center mb-3 shadow-lg overflow-hidden">
+          <img src={logoAsset.url} alt="Logo Dr. Sameh Aissa" className="w-full h-full object-contain" />
         </div>
-        <h1 className="text-xl font-bold">Cabinet Dr. Sameh</h1>
+        <h1 className="text-xl font-bold">Dr. Sameh Aissa</h1>
         <p className="text-sm opacity-95 mt-1">Entrez votre code PIN pour continuer</p>
       </div>
 
@@ -171,14 +171,14 @@ function Header({ role, onLogout }: { role: Role; onLogout: () => void }) {
         <Sparkles className="w-24 h-24" />
       </div>
       <div className="flex items-center gap-3">
-        <div className="w-12 h-12 rounded-2xl bg-white/25 backdrop-blur flex items-center justify-center">
-          <Stethoscope className="w-6 h-6" />
+        <div className="w-14 h-14 rounded-2xl bg-white/90 backdrop-blur flex items-center justify-center overflow-hidden shadow-md">
+          <img src={logoAsset.url} alt="Logo Dr. Sameh Aissa" className="w-full h-full object-contain" />
         </div>
         <div className="flex-1">
           <p className="text-xs opacity-90 font-medium">
             {role === "doctor" ? "Docteur" : "Secrétaire"}
           </p>
-          <h1 className="text-xl font-bold leading-tight">Dr. Sameh</h1>
+          <h1 className="text-xl font-bold leading-tight">Dr. Sameh Aissa</h1>
         </div>
         <button
           onClick={onLogout}
@@ -188,7 +188,7 @@ function Header({ role, onLogout }: { role: Role; onLogout: () => void }) {
           <LogOut className="w-4 h-4" />
         </button>
       </div>
-      <p className="mt-3 text-sm opacity-95">Prenez rendez-vous en quelques secondes 🌸</p>
+      <p className="mt-3 text-sm opacity-95">Prenez rendez-vous en quelques secondes 🌿</p>
     </header>
   );
 }
