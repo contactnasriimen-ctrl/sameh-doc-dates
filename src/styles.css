@@ -36,37 +36,38 @@
 :root {
   --radius: 1.25rem;
 
-  /* Warm gold palette */
-  --background: oklch(0.985 0.012 80);
-  --foreground: oklch(0.30 0.06 75);
+  /* Logo palette: vert profond + or */
+  --background: oklch(0.985 0.010 110);
+  --foreground: oklch(0.30 0.06 145);
 
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.30 0.06 75);
+  --card-foreground: oklch(0.30 0.06 145);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.30 0.06 75);
+  --popover-foreground: oklch(0.30 0.06 145);
 
-  --primary: oklch(0.72 0.16 80);          /* rich gold */
-  --primary-foreground: oklch(0.99 0.01 80);
+  --primary: oklch(0.48 0.13 145);          /* vert feuille */
+  --primary-foreground: oklch(0.99 0.01 110);
 
-  --secondary: oklch(0.95 0.04 80);       /* soft cream gold */
-  --secondary-foreground: oklch(0.35 0.08 75);
+  --secondary: oklch(0.95 0.05 95);         /* or crème */
+  --secondary-foreground: oklch(0.38 0.09 120);
 
-  --muted: oklch(0.96 0.015 80);
-  --muted-foreground: oklch(0.55 0.05 75);
+  --muted: oklch(0.96 0.015 120);
+  --muted-foreground: oklch(0.52 0.04 140);
 
-  --accent: oklch(0.88 0.10 70);           /* warm amber */
-  --accent-foreground: oklch(0.30 0.08 70);
+  --accent: oklch(0.82 0.14 90);            /* or doré */
+  --accent-foreground: oklch(0.32 0.08 110);
 
   --destructive: oklch(0.62 0.22 25);
   --destructive-foreground: oklch(0.99 0 0);
 
-  --border: oklch(0.92 0.02 80);
-  --input: oklch(0.94 0.02 80);
-  --ring: oklch(0.72 0.16 80);
+  --border: oklch(0.92 0.02 120);
+  --input: oklch(0.95 0.02 120);
+  --ring: oklch(0.48 0.13 145);
 
-  --gradient-bg: linear-gradient(160deg, oklch(0.98 0.02 75) 0%, oklch(0.97 0.03 85) 100%);
-  --gradient-primary: linear-gradient(135deg, oklch(0.78 0.15 75) 0%, oklch(0.72 0.14 85) 100%);
-  --shadow-cute: 0 10px 30px -10px oklch(0.72 0.16 80 / 0.35);
+  --gradient-bg: linear-gradient(165deg, oklch(0.99 0.012 110) 0%, oklch(0.965 0.035 95) 100%);
+  --gradient-primary: linear-gradient(135deg, oklch(0.42 0.13 148) 0%, oklch(0.56 0.14 140) 45%, oklch(0.80 0.15 92) 100%);
+  --gradient-gold: linear-gradient(135deg, oklch(0.86 0.13 95) 0%, oklch(0.74 0.15 85) 100%);
+  --shadow-cute: 0 12px 30px -12px oklch(0.42 0.13 148 / 0.40);
 }
 
 @layer base {
