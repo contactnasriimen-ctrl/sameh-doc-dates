@@ -12,6 +12,7 @@ import {
   bookAppointment, listAppointments, deleteAppointment, updateAppointment,
 } from "@/lib/appointments.functions";
 import { toast, Toaster } from "sonner";
+import logoAsset from "@/assets/dr-sameh-logo.png.asset.json";
 
 // Change these PINs to your own
 const PIN_DOCTOR = "1234";
