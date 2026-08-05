@@ -161,9 +161,8 @@ export function BahjaChat() {
 
         <div className="p-3 border-t border-border">
           <PromptInput
-            onSubmit={(e) => {
-              e.preventDefault();
-              send(input);
+            onSubmit={(message) => {
+              send(message.text ?? input);
             }}
           >
             <PromptInputTextarea
