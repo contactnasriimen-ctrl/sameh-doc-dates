@@ -6,12 +6,13 @@ import {
   Heart, Calendar, Clock, Phone, User, Stethoscope, Sparkles,
   History, Plus, Trash2, Lock, LogOut, FileText, ChevronDown, ChevronUp, Save,
   FolderHeart, ArrowLeft, Search, Pill, AlertTriangle, ClipboardList, NotebookPen,
-  Pencil, X,
+  Pencil, X, MessageCircleHeart,
 } from "lucide-react";
 import {
   bookAppointment, listAppointments, deleteAppointment, updateAppointment,
 } from "@/lib/appointments.functions";
 import { toast, Toaster } from "sonner";
+import { BahjaChat } from "@/components/BahjaChat";
 import logoAsset from "@/assets/dr-sameh-logo.png.asset.json";
 
 // Change these PINs to your own
@@ -20,7 +21,7 @@ const PIN_SECRETARY = "0000";
 const ROLE_KEY = "cabinet_role_v1";
 
 type Role = "doctor" | "secretary";
-type Tab = "book" | "history" | "records";
+type Tab = "book" | "history" | "records" | "bahja";
 
 const appointmentsQO = () =>
   queryOptions({
@@ -66,6 +67,7 @@ function Home() {
             {tab === "book" && <BookForm onBooked={() => setTab("history")} />}
             {tab === "history" && <HistoryList role={role} />}
             {tab === "records" && role === "doctor" && <PatientRecords />}
+            {tab === "bahja" && role === "doctor" && <BahjaChat />}
             <p className="text-center text-xs text-muted-foreground mt-2 flex items-center justify-center gap-1">
               Fait avec <Heart className="w-3 h-3 fill-primary text-primary" /> pour Dr. Sameh
             </p>
@@ -212,6 +214,11 @@ function Tabs({ tab, setTab, role }: { tab: Tab; setTab: (t: Tab) => void; role:
       {role === "doctor" && (
         <button className={btn(tab === "records")} onClick={() => setTab("records")}>
           <FolderHeart className="w-4 h-4" /> Fiches
+        </button>
+      )}
+      {role === "doctor" && (
+        <button className={btn(tab === "bahja")} onClick={() => setTab("bahja")}>
+          <MessageCircleHeart className="w-4 h-4" /> Bahja
         </button>
       )}
     </div>
