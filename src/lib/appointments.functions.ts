@@ -15,6 +15,7 @@ const bookSchema = z.object({
   medical_history: z.preprocess(emptyToNull, z.string().max(2000).nullable().optional()),
   allergies: z.preprocess(emptyToNull, z.string().max(1000).nullable().optional()),
   private_notes: z.preprocess(emptyToNull, z.string().max(2000).nullable().optional()),
+  visit_types: z.array(z.string().max(50)).max(10).optional(),
 });
 
 function getClient() {
@@ -51,6 +52,7 @@ export const bookAppointment = createServerFn({ method: "POST" })
         medical_history: data.medical_history ?? null,
         allergies: data.allergies ?? null,
         private_notes: data.private_notes ?? null,
+        visit_types: data.visit_types ?? [],
       })
       .select()
       .single();
@@ -89,6 +91,7 @@ export const updateAppointment = createServerFn({ method: "POST" })
         medical_history: rest.medical_history ?? null,
         allergies: rest.allergies ?? null,
         private_notes: rest.private_notes ?? null,
+        visit_types: rest.visit_types ?? [],
       })
       .eq("id", id);
     if (error) throw new Error(error.message);
