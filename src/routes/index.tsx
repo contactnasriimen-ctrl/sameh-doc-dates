@@ -1229,3 +1229,183 @@ function PatientDetail({ group, onBack }: { group: PatientGroup; onBack: () => v
     </div>
   );
 }
+
+// ============================================================
+// STATS DASHBOARD
+// ============================================================
+
+function StatsDashboard() {
+  const { data, isLoading } = useQuery(appointmentsQO());
+  if (isLoading) {
+    return <div className="bg-card rounded-3xl p-8 text-center text-muted-foreground">Chargement...</div>;
+  }
+  const all = (data ?? []) as Appointment[];
+  if (all.length === 0) {
+    return (
+      <div className="bg-card rounded-3xl p-8 text-center border border-border">
+        <div className="mx-auto w-14 h-14 rounded-2xl bg-secondary flex items-center justify-center mb-3">
+          <BarChart3 className="w-6 h-6 text-secondary-foreground" />
+        </div>
+        <p className="font-semibold">Pas encore de statistiques</p>
+        <p className="text-sm text-muted-foreground mt-1">Ajoutez des rendez-vous pour voir le tableau de bord 📊</p>
+      </div>
+    );
+  }
+
+  const now = new Date();
+  const todayK = dayKey(now);
+  const startWeek = new Date(now);
+  startWeek.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  startWeek.setHours(0, 0, 0, 0);
+
+  const withDate = all.filter((a) => a.appointment_at);
+  const upcoming = withDate.filter((a) => new Date(a.appointment_at!).getTime() >= now.getTime());
+  const past = withDate.filter((a) => new Date(a.appointment_at!).getTime() < now.getTime());
+  const today = withDate.filter((a) => dayKey(new Date(a.appointment_at!)) === todayK);
+  const thisWeek = withDate.filter((a) => new Date(a.appointment_at!).getTime() >= startWeek.getTime());
+  const thisMonth = withDate.filter((a) => {
+    const d = new Date(a.appointment_at!);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  });
+
+  // patients
+  const byPatient = new Map<string, number>();
+  for (const a of all) {
+    const n = (a.patient_name ?? "").trim();
+    if (!n) continue;
+    byPatient.set(n, (byPatient.get(n) ?? 0) + 1);
+  }
+  const patients = [...byPatient.entries()].sort((a, b) => b[1] - a[1]);
+  const recurring = patients.filter(([, c]) => c > 1).length;
+
+  // types
+  const typeCounts = VISIT_TYPES.map((t) => ({
+    ...t,
+    count: all.filter((a) => (a.visit_types ?? []).includes(t.key)).length,
+  }));
+  const maxType = Math.max(1, ...typeCounts.map((t) => t.count));
+  const noType = all.filter((a) => (a.visit_types ?? []).length === 0).length;
+  const multi = all.filter((a) => (a.visit_types ?? []).length > 1).length;
+
+  // jours de la semaine
+  const dayNames = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+  const weekday = dayNames.map((label, i) => ({
+    label,
+    count: withDate.filter((a) => (new Date(a.appointment_at!).getDay() + 6) % 7 === i).length,
+  }));
+  const maxDay = Math.max(1, ...weekday.map((d) => d.count));
+
+  const incomplete = all.filter((a) => !a.patient_name || !a.phone || !a.appointment_at).length;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="grid grid-cols-2 gap-3">
+        <StatCard icon={<CalendarCheck className="w-4 h-4" />} label="Total RDV" value={all.length} />
+        <StatCard icon={<Clock className="w-4 h-4" />} label="À venir" value={upcoming.length} />
+        <StatCard icon={<History className="w-4 h-4" />} label="Passés" value={past.length} />
+        <StatCard icon={<Calendar className="w-4 h-4" />} label="Aujourd'hui" value={today.length} />
+        <StatCard icon={<Calendar className="w-4 h-4" />} label="Cette semaine" value={thisWeek.length} />
+        <StatCard icon={<Calendar className="w-4 h-4" />} label="Ce mois" value={thisMonth.length} />
+        <StatCard icon={<Users className="w-4 h-4" />} label="Patients" value={patients.length} />
+        <StatCard icon={<UserCheck className="w-4 h-4" />} label="Récurrents" value={recurring} />
+      </div>
+
+      <Panel title="Répartition par type de visite" icon={<Tag className="w-4 h-4" />}>
+        <div className="flex flex-col gap-2.5">
+          {typeCounts.map((t) => (
+            <div key={t.key}>
+              <div className="flex justify-between text-xs font-semibold mb-1">
+                <span>{t.emoji} {t.label}</span>
+                <span className="text-muted-foreground">
+                  {t.count} · {all.length ? Math.round((t.count / all.length) * 100) : 0}%
+                </span>
+              </div>
+              <div className="h-2.5 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full"
+                  style={{ width: `${(t.count / maxType) * 100}%`, backgroundImage: "var(--gradient-primary)" }}
+                />
+              </div>
+            </div>
+          ))}
+          <p className="text-[11px] text-muted-foreground mt-1">
+            {multi} rendez-vous avec plusieurs types · {noType} sans type
+          </p>
+        </div>
+      </Panel>
+
+      <Panel title="Activité par jour de la semaine" icon={<BarChart3 className="w-4 h-4" />}>
+        <div className="flex items-end justify-between gap-1.5 h-32">
+          {weekday.map((d) => (
+            <div key={d.label} className="flex-1 flex flex-col items-center gap-1">
+              <span className="text-[10px] font-semibold text-muted-foreground">{d.count}</span>
+              <div
+                className="w-full rounded-t-lg"
+                style={{
+                  height: `${Math.max(4, (d.count / maxDay) * 100)}%`,
+                  backgroundImage: "var(--gradient-primary)",
+                }}
+              />
+              <span className="text-[10px] font-semibold text-muted-foreground">{d.label}</span>
+            </div>
+          ))}
+        </div>
+      </Panel>
+
+      <Panel title="Patients les plus fréquents" icon={<Users className="w-4 h-4" />}>
+        {patients.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Aucun patient nommé.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {patients.slice(0, 6).map(([name, count]) => (
+              <div key={name} className="flex items-center justify-between text-sm">
+                <span className="truncate font-medium">{name}</span>
+                <span className="text-xs font-semibold bg-secondary text-secondary-foreground rounded-full px-2 py-0.5">
+                  {count} visite{count > 1 ? "s" : ""}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Panel>
+
+      <Panel title="Qualité des dossiers" icon={<ClipboardList className="w-4 h-4" />}>
+        <p className="text-sm">
+          <span className="font-bold text-primary">{all.length - incomplete}</span> dossiers complets ·{" "}
+          <span className="font-bold text-destructive">{incomplete}</span> incomplets
+        </p>
+        <div className="h-2.5 rounded-full bg-muted overflow-hidden mt-2">
+          <div
+            className="h-full rounded-full"
+            style={{
+              width: `${((all.length - incomplete) / all.length) * 100}%`,
+              backgroundImage: "var(--gradient-primary)",
+            }}
+          />
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
+  return (
+    <div className="bg-card rounded-2xl border border-border shadow-sm p-3.5">
+      <span className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
+        {icon} {label}
+      </span>
+      <p className="text-2xl font-bold mt-1">{value}</p>
+    </div>
+  );
+}
+
+function Panel({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="bg-card rounded-3xl border border-border shadow-sm p-4">
+      <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5 mb-3">
+        {icon} {title}
+      </p>
+      {children}
+    </div>
+  );
+}
