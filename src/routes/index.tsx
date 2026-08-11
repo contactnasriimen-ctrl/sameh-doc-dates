@@ -6,7 +6,7 @@ import {
   Heart, Calendar, Clock, Phone, User, Stethoscope, Sparkles,
   History, Plus, Trash2, Lock, LogOut, FileText, ChevronDown, ChevronUp, Save,
   FolderHeart, ArrowLeft, Search, Pill, AlertTriangle, ClipboardList, NotebookPen,
-  Pencil, X, MessageCircleHeart,
+  Pencil, X, MessageCircleHeart, BarChart3, Users, CalendarCheck, Tag, UserCheck,
 } from "lucide-react";
 import {
   bookAppointment, listAppointments, deleteAppointment, updateAppointment,
@@ -21,7 +21,62 @@ const PIN_SECRETARY = "0000";
 const ROLE_KEY = "cabinet_role_v1";
 
 type Role = "doctor" | "secretary";
-type Tab = "book" | "history" | "records" | "bahja";
+type Tab = "book" | "history" | "records" | "stats" | "bahja";
+
+export const VISIT_TYPES = [
+  { key: "classique", label: "Consultation classique", short: "Classique", emoji: "🩺" },
+  { key: "controle", label: "Contrôle", short: "Contrôle", emoji: "🔁" },
+  { key: "holistique", label: "Consultation holistique", short: "Holistique", emoji: "🌿" },
+  { key: "seance", label: "Séance", short: "Séance", emoji: "✨" },
+] as const;
+
+const visitLabel = (k: string) =>
+  VISIT_TYPES.find((v) => v.key === k)?.label ?? k;
+const visitEmoji = (k: string) => VISIT_TYPES.find((v) => v.key === k)?.emoji ?? "•";
+
+function VisitTypePicker({
+  value, onChange,
+}: { value: string[]; onChange: (v: string[]) => void }) {
+  const toggle = (k: string) =>
+    onChange(value.includes(k) ? value.filter((v) => v !== k) : [...value, k]);
+  return (
+    <div className="flex flex-wrap gap-2">
+      {VISIT_TYPES.map((t) => {
+        const active = value.includes(t.key);
+        return (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => toggle(t.key)}
+            className={`px-3 py-2 rounded-2xl text-xs font-semibold border transition-all active:scale-95 ${
+              active
+                ? "bg-primary text-primary-foreground border-primary shadow-[var(--shadow-cute)]"
+                : "bg-muted text-muted-foreground border-transparent hover:text-foreground"
+            }`}
+          >
+            {t.emoji} {t.short}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function VisitTypeBadges({ types }: { types: string[] }) {
+  if (!types || types.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-2">
+      {types.map((t) => (
+        <span
+          key={t}
+          className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground"
+        >
+          {visitEmoji(t)} {visitLabel(t)}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 const appointmentsQO = () =>
   queryOptions({
@@ -67,6 +122,7 @@ function Home() {
             {tab === "book" && <BookForm onBooked={() => setTab("history")} />}
             {tab === "history" && <HistoryList role={role} />}
             {tab === "records" && role === "doctor" && <PatientRecords />}
+            {tab === "stats" && <StatsDashboard />}
             {tab === "bahja" && role === "doctor" && <BahjaChat />}
             <p className="text-center text-xs text-muted-foreground mt-2 flex items-center justify-center gap-1">
               Fait avec <Heart className="w-3 h-3 fill-primary text-primary" /> pour Dr. Sameh
@@ -198,13 +254,13 @@ function Header({ role, onLogout }: { role: Role; onLogout: () => void }) {
 
 function Tabs({ tab, setTab, role }: { tab: Tab; setTab: (t: Tab) => void; role: Role }) {
   const btn = (active: boolean) =>
-    `flex-1 flex items-center justify-center gap-1.5 py-3 rounded-2xl text-xs font-semibold transition-all ${
+    `flex-1 min-w-[64px] flex items-center justify-center gap-1 py-3 rounded-2xl text-[11px] font-semibold transition-all whitespace-nowrap ${
       active
         ? "bg-white text-primary shadow-[var(--shadow-cute)]"
         : "text-muted-foreground hover:text-foreground"
     }`;
   return (
-    <div className="flex gap-1.5 p-1.5 bg-white/60 backdrop-blur rounded-3xl border border-border">
+    <div className="flex gap-1.5 p-1.5 bg-white/60 backdrop-blur rounded-3xl border border-border overflow-x-auto">
       <button className={btn(tab === "book")} onClick={() => setTab("book")}>
         <Plus className="w-4 h-4" /> Nouveau
       </button>
@@ -216,6 +272,9 @@ function Tabs({ tab, setTab, role }: { tab: Tab; setTab: (t: Tab) => void; role:
           <FolderHeart className="w-4 h-4" /> Fiches
         </button>
       )}
+      <button className={btn(tab === "stats")} onClick={() => setTab("stats")}>
+        <BarChart3 className="w-4 h-4" /> Stats
+      </button>
       {role === "doctor" && (
         <button className={btn(tab === "bahja")} onClick={() => setTab("bahja")}>
           <MessageCircleHeart className="w-4 h-4" /> Bahja
@@ -365,6 +424,7 @@ type Appointment = {
   medical_history: string | null;
   allergies: string | null;
   private_notes: string | null;
+  visit_types: string[] | null;
   created_at: string;
 };
 
