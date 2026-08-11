@@ -1337,15 +1337,17 @@ function StatsDashboard() {
       <Panel title="Activité par jour de la semaine" icon={<BarChart3 className="w-4 h-4" />}>
         <div className="flex items-end justify-between gap-1.5 h-32">
           {weekday.map((d) => (
-            <div key={d.label} className="flex-1 flex flex-col items-center gap-1">
+            <div key={d.label} className="flex-1 h-full flex flex-col items-center gap-1">
               <span className="text-[10px] font-semibold text-muted-foreground">{d.count}</span>
-              <div
-                className="w-full rounded-t-lg"
-                style={{
-                  height: `${Math.max(4, (d.count / maxDay) * 100)}%`,
-                  backgroundImage: "var(--gradient-primary)",
-                }}
-              />
+              <div className="flex-1 w-full flex items-end">
+                <div
+                  className="w-full rounded-t-lg"
+                  style={{
+                    height: `${Math.max(4, (d.count / maxDay) * 100)}%`,
+                    backgroundImage: "var(--gradient-primary)",
+                  }}
+                />
+              </div>
               <span className="text-[10px] font-semibold text-muted-foreground">{d.label}</span>
             </div>
           ))}
