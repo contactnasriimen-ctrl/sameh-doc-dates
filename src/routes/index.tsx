@@ -287,6 +287,7 @@ function Tabs({ tab, setTab, role }: { tab: Tab; setTab: (t: Tab) => void; role:
 function BookForm({ onBooked }: { onBooked: () => void }) {
   const qc = useQueryClient();
   const book = useServerFn(bookAppointment);
+  const { data: existing } = useQuery(appointmentsQO());
   const [form, setForm] = useState({
     patient_name: "",
     phone: "",
@@ -294,6 +295,34 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
     time: "",
     reason: "",
   });
+  const [types, setTypes] = useState<string[]>([]);
+  const [known, setKnown] = useState<string | null>(null);
+
+  // Patients déjà venus : un clic remplit la fiche automatiquement
+  const returning = (() => {
+    const map = new Map<string, Appointment>();
+    const list = ((existing ?? []) as Appointment[])
+      .slice()
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    for (const a of list) {
+      const n = (a.patient_name ?? "").trim();
+      if (!n) continue;
+      if (!map.has(n.toLowerCase())) map.set(n.toLowerCase(), a);
+    }
+    return [...map.values()].slice(0, 12);
+  })();
+
+  const prefill = (a: Appointment) => {
+    setForm((f) => ({
+      ...f,
+      patient_name: a.patient_name ?? "",
+      phone: a.phone ?? "",
+      reason: a.reason ?? "",
+    }));
+    setTypes(a.visit_types ?? []);
+    setKnown(a.patient_name ?? null);
+    toast.success("Patient déjà connu — infos remplies ✨");
+  };
 
   const mutation = useMutation({
     mutationFn: (payload: Record<string, string | null>) => book({ data: payload }),
@@ -301,6 +330,8 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
       qc.invalidateQueries({ queryKey: ["appointments"] });
       toast.success("Rendez-vous enregistré ! 🌷");
       setForm({ patient_name: "", phone: "", date: "", time: "", reason: "" });
+      setTypes([]);
+      setKnown(null);
       onBooked();
     },
     onError: (e: Error) => toast.error(e.message || "Erreur"),
@@ -319,12 +350,42 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
       phone: form.phone || null,
       appointment_at: iso,
       reason: form.reason || null,
-    });
+      visit_types: types,
+    } as never);
   };
 
   return (
     <form onSubmit={onSubmit} className="bg-card rounded-3xl p-5 shadow-sm border border-border flex flex-col gap-4">
       <p className="text-xs text-muted-foreground -mb-1">Tous les champs sont optionnels ✨</p>
+
+      {returning.length > 0 && (
+        <div className="bg-secondary/40 rounded-2xl p-3">
+          <p className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5 mb-2">
+            <UserCheck className="w-3.5 h-3.5" /> Patient déjà venu ? Touchez son nom
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {returning.map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => prefill(a)}
+                className={`px-2.5 py-1.5 rounded-full text-[11px] font-semibold transition-all active:scale-95 ${
+                  known === a.patient_name
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-white text-foreground/80 hover:text-primary"
+                }`}
+              >
+                {a.patient_name}
+              </button>
+            ))}
+          </div>
+          {known && (
+            <p className="text-[11px] text-primary font-semibold mt-2">
+              Fiche récupérée : ajoutez juste la date et l'heure 🌿
+            </p>
+          )}
+        </div>
+      )}
       <Field icon={<User className="w-4 h-4" />} label="Nom du patient">
         <input
           value={form.patient_name}
@@ -359,6 +420,9 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
           />
         </Field>
       </div>
+      <Field icon={<Tag className="w-4 h-4" />} label="Type de visite (plusieurs choix possibles)">
+        <VisitTypePicker value={types} onChange={setTypes} />
+      </Field>
       <Field icon={<Sparkles className="w-4 h-4" />} label="Motif">
         <textarea
           value={form.reason}
@@ -661,6 +725,8 @@ function AppointmentCard({
             </a>
           )}
 
+          <VisitTypeBadges types={appt.visit_types ?? []} />
+
           {appt.reason && (
             <p className="text-sm mt-2 bg-muted rounded-xl px-3 py-2">{appt.reason}</p>
           )}
@@ -722,6 +788,7 @@ function EditAppointment({ appt, onClose }: { appt: Appointment; onClose: () => 
     time: initialDt ? `${pad(initialDt.getHours())}:${pad(initialDt.getMinutes())}` : "",
     reason: appt.reason ?? "",
   });
+  const [types, setTypes] = useState<string[]>(appt.visit_types ?? []);
 
   const mutation = useMutation({
     mutationFn: () => {
@@ -740,7 +807,8 @@ function EditAppointment({ appt, onClose }: { appt: Appointment; onClose: () => 
           medical_history: appt.medical_history,
           allergies: appt.allergies,
           private_notes: appt.private_notes,
-        },
+          visit_types: types,
+        } as never,
       });
     },
     onSuccess: () => {
@@ -785,6 +853,9 @@ function EditAppointment({ appt, onClose }: { appt: Appointment; onClose: () => 
           />
         </Field>
       </div>
+      <Field icon={<Tag className="w-4 h-4" />} label="Type de visite">
+        <VisitTypePicker value={types} onChange={setTypes} />
+      </Field>
       <Field icon={<Sparkles className="w-4 h-4" />} label="Motif">
         <textarea
           value={form.reason}
@@ -843,8 +914,9 @@ function MedicalFile({ appt }: { appt: Appointment }) {
           phone: appt.phone,
           appointment_at: appt.appointment_at,
           reason: appt.reason,
+          visit_types: appt.visit_types ?? [],
           ...form,
-        },
+        } as never,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["appointments"] });
