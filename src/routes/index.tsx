@@ -6,7 +6,7 @@ import {
   Heart, Calendar, Clock, Phone, User, Stethoscope, Sparkles,
   History, Plus, Trash2, Lock, LogOut, FileText, ChevronDown, ChevronUp, Save,
   FolderHeart, ArrowLeft, Search, Pill, AlertTriangle, ClipboardList, NotebookPen,
-  Pencil, X, MessageCircleHeart,
+  Pencil, X, MessageCircleHeart, BarChart3, Users, CalendarCheck, Tag, UserCheck,
 } from "lucide-react";
 import {
   bookAppointment, listAppointments, deleteAppointment, updateAppointment,
@@ -21,7 +21,62 @@ const PIN_SECRETARY = "0000";
 const ROLE_KEY = "cabinet_role_v1";
 
 type Role = "doctor" | "secretary";
-type Tab = "book" | "history" | "records" | "bahja";
+type Tab = "book" | "history" | "records" | "stats" | "bahja";
+
+export const VISIT_TYPES = [
+  { key: "classique", label: "Consultation classique", short: "Classique", emoji: "🩺" },
+  { key: "controle", label: "Contrôle", short: "Contrôle", emoji: "🔁" },
+  { key: "holistique", label: "Consultation holistique", short: "Holistique", emoji: "🌿" },
+  { key: "seance", label: "Séance", short: "Séance", emoji: "✨" },
+] as const;
+
+const visitLabel = (k: string) =>
+  VISIT_TYPES.find((v) => v.key === k)?.label ?? k;
+const visitEmoji = (k: string) => VISIT_TYPES.find((v) => v.key === k)?.emoji ?? "•";
+
+function VisitTypePicker({
+  value, onChange,
+}: { value: string[]; onChange: (v: string[]) => void }) {
+  const toggle = (k: string) =>
+    onChange(value.includes(k) ? value.filter((v) => v !== k) : [...value, k]);
+  return (
+    <div className="flex flex-wrap gap-2">
+      {VISIT_TYPES.map((t) => {
+        const active = value.includes(t.key);
+        return (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => toggle(t.key)}
+            className={`px-3 py-2 rounded-2xl text-xs font-semibold border transition-all active:scale-95 ${
+              active
+                ? "bg-primary text-primary-foreground border-primary shadow-[var(--shadow-cute)]"
+                : "bg-muted text-muted-foreground border-transparent hover:text-foreground"
+            }`}
+          >
+            {t.emoji} {t.short}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function VisitTypeBadges({ types }: { types: string[] }) {
+  if (!types || types.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-2">
+      {types.map((t) => (
+        <span
+          key={t}
+          className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground"
+        >
+          {visitEmoji(t)} {visitLabel(t)}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 const appointmentsQO = () =>
   queryOptions({
@@ -67,6 +122,7 @@ function Home() {
             {tab === "book" && <BookForm onBooked={() => setTab("history")} />}
             {tab === "history" && <HistoryList role={role} />}
             {tab === "records" && role === "doctor" && <PatientRecords />}
+            {tab === "stats" && <StatsDashboard />}
             {tab === "bahja" && role === "doctor" && <BahjaChat />}
             <p className="text-center text-xs text-muted-foreground mt-2 flex items-center justify-center gap-1">
               Fait avec <Heart className="w-3 h-3 fill-primary text-primary" /> pour Dr. Sameh
@@ -198,13 +254,13 @@ function Header({ role, onLogout }: { role: Role; onLogout: () => void }) {
 
 function Tabs({ tab, setTab, role }: { tab: Tab; setTab: (t: Tab) => void; role: Role }) {
   const btn = (active: boolean) =>
-    `flex-1 flex items-center justify-center gap-1.5 py-3 rounded-2xl text-xs font-semibold transition-all ${
+    `flex-1 min-w-[64px] flex items-center justify-center gap-1 py-3 rounded-2xl text-[11px] font-semibold transition-all whitespace-nowrap ${
       active
         ? "bg-white text-primary shadow-[var(--shadow-cute)]"
         : "text-muted-foreground hover:text-foreground"
     }`;
   return (
-    <div className="flex gap-1.5 p-1.5 bg-white/60 backdrop-blur rounded-3xl border border-border">
+    <div className="flex gap-1.5 p-1.5 bg-white/60 backdrop-blur rounded-3xl border border-border overflow-x-auto">
       <button className={btn(tab === "book")} onClick={() => setTab("book")}>
         <Plus className="w-4 h-4" /> Nouveau
       </button>
@@ -216,6 +272,9 @@ function Tabs({ tab, setTab, role }: { tab: Tab; setTab: (t: Tab) => void; role:
           <FolderHeart className="w-4 h-4" /> Fiches
         </button>
       )}
+      <button className={btn(tab === "stats")} onClick={() => setTab("stats")}>
+        <BarChart3 className="w-4 h-4" /> Stats
+      </button>
       {role === "doctor" && (
         <button className={btn(tab === "bahja")} onClick={() => setTab("bahja")}>
           <MessageCircleHeart className="w-4 h-4" /> Bahja
@@ -228,6 +287,7 @@ function Tabs({ tab, setTab, role }: { tab: Tab; setTab: (t: Tab) => void; role:
 function BookForm({ onBooked }: { onBooked: () => void }) {
   const qc = useQueryClient();
   const book = useServerFn(bookAppointment);
+  const { data: existing } = useQuery(appointmentsQO());
   const [form, setForm] = useState({
     patient_name: "",
     phone: "",
@@ -235,6 +295,34 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
     time: "",
     reason: "",
   });
+  const [types, setTypes] = useState<string[]>([]);
+  const [known, setKnown] = useState<string | null>(null);
+
+  // Patients déjà venus : un clic remplit la fiche automatiquement
+  const returning = (() => {
+    const map = new Map<string, Appointment>();
+    const list = ((existing ?? []) as Appointment[])
+      .slice()
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    for (const a of list) {
+      const n = (a.patient_name ?? "").trim();
+      if (!n) continue;
+      if (!map.has(n.toLowerCase())) map.set(n.toLowerCase(), a);
+    }
+    return [...map.values()].slice(0, 12);
+  })();
+
+  const prefill = (a: Appointment) => {
+    setForm((f) => ({
+      ...f,
+      patient_name: a.patient_name ?? "",
+      phone: a.phone ?? "",
+      reason: a.reason ?? "",
+    }));
+    setTypes(a.visit_types ?? []);
+    setKnown(a.patient_name ?? null);
+    toast.success("Patient déjà connu — infos remplies ✨");
+  };
 
   const mutation = useMutation({
     mutationFn: (payload: Record<string, string | null>) => book({ data: payload }),
@@ -242,6 +330,8 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
       qc.invalidateQueries({ queryKey: ["appointments"] });
       toast.success("Rendez-vous enregistré ! 🌷");
       setForm({ patient_name: "", phone: "", date: "", time: "", reason: "" });
+      setTypes([]);
+      setKnown(null);
       onBooked();
     },
     onError: (e: Error) => toast.error(e.message || "Erreur"),
@@ -260,12 +350,42 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
       phone: form.phone || null,
       appointment_at: iso,
       reason: form.reason || null,
-    });
+      visit_types: types,
+    } as never);
   };
 
   return (
     <form onSubmit={onSubmit} className="bg-card rounded-3xl p-5 shadow-sm border border-border flex flex-col gap-4">
       <p className="text-xs text-muted-foreground -mb-1">Tous les champs sont optionnels ✨</p>
+
+      {returning.length > 0 && (
+        <div className="bg-secondary/40 rounded-2xl p-3">
+          <p className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5 mb-2">
+            <UserCheck className="w-3.5 h-3.5" /> Patient déjà venu ? Touchez son nom
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {returning.map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => prefill(a)}
+                className={`px-2.5 py-1.5 rounded-full text-[11px] font-semibold transition-all active:scale-95 ${
+                  known === a.patient_name
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-white text-foreground/80 hover:text-primary"
+                }`}
+              >
+                {a.patient_name}
+              </button>
+            ))}
+          </div>
+          {known && (
+            <p className="text-[11px] text-primary font-semibold mt-2">
+              Fiche récupérée : ajoutez juste la date et l'heure 🌿
+            </p>
+          )}
+        </div>
+      )}
       <Field icon={<User className="w-4 h-4" />} label="Nom du patient">
         <input
           value={form.patient_name}
@@ -300,6 +420,9 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
           />
         </Field>
       </div>
+      <Field icon={<Tag className="w-4 h-4" />} label="Type de visite (plusieurs choix possibles)">
+        <VisitTypePicker value={types} onChange={setTypes} />
+      </Field>
       <Field icon={<Sparkles className="w-4 h-4" />} label="Motif">
         <textarea
           value={form.reason}
@@ -365,6 +488,7 @@ type Appointment = {
   medical_history: string | null;
   allergies: string | null;
   private_notes: string | null;
+  visit_types: string[] | null;
   created_at: string;
 };
 
@@ -601,6 +725,8 @@ function AppointmentCard({
             </a>
           )}
 
+          <VisitTypeBadges types={appt.visit_types ?? []} />
+
           {appt.reason && (
             <p className="text-sm mt-2 bg-muted rounded-xl px-3 py-2">{appt.reason}</p>
           )}
@@ -662,6 +788,7 @@ function EditAppointment({ appt, onClose }: { appt: Appointment; onClose: () => 
     time: initialDt ? `${pad(initialDt.getHours())}:${pad(initialDt.getMinutes())}` : "",
     reason: appt.reason ?? "",
   });
+  const [types, setTypes] = useState<string[]>(appt.visit_types ?? []);
 
   const mutation = useMutation({
     mutationFn: () => {
@@ -680,7 +807,8 @@ function EditAppointment({ appt, onClose }: { appt: Appointment; onClose: () => 
           medical_history: appt.medical_history,
           allergies: appt.allergies,
           private_notes: appt.private_notes,
-        },
+          visit_types: types,
+        } as never,
       });
     },
     onSuccess: () => {
@@ -725,6 +853,9 @@ function EditAppointment({ appt, onClose }: { appt: Appointment; onClose: () => 
           />
         </Field>
       </div>
+      <Field icon={<Tag className="w-4 h-4" />} label="Type de visite">
+        <VisitTypePicker value={types} onChange={setTypes} />
+      </Field>
       <Field icon={<Sparkles className="w-4 h-4" />} label="Motif">
         <textarea
           value={form.reason}
@@ -783,8 +914,9 @@ function MedicalFile({ appt }: { appt: Appointment }) {
           phone: appt.phone,
           appointment_at: appt.appointment_at,
           reason: appt.reason,
+          visit_types: appt.visit_types ?? [],
           ...form,
-        },
+        } as never,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["appointments"] });
@@ -1094,6 +1226,188 @@ function PatientDetail({ group, onBack }: { group: PatientGroup; onBack: () => v
             })}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ============================================================
+// STATS DASHBOARD
+// ============================================================
+
+function StatsDashboard() {
+  const { data, isLoading } = useQuery(appointmentsQO());
+  if (isLoading) {
+    return <div className="bg-card rounded-3xl p-8 text-center text-muted-foreground">Chargement...</div>;
+  }
+  const all = (data ?? []) as Appointment[];
+  if (all.length === 0) {
+    return (
+      <div className="bg-card rounded-3xl p-8 text-center border border-border">
+        <div className="mx-auto w-14 h-14 rounded-2xl bg-secondary flex items-center justify-center mb-3">
+          <BarChart3 className="w-6 h-6 text-secondary-foreground" />
+        </div>
+        <p className="font-semibold">Pas encore de statistiques</p>
+        <p className="text-sm text-muted-foreground mt-1">Ajoutez des rendez-vous pour voir le tableau de bord 📊</p>
+      </div>
+    );
+  }
+
+  const now = new Date();
+  const todayK = dayKey(now);
+  const startWeek = new Date(now);
+  startWeek.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  startWeek.setHours(0, 0, 0, 0);
+
+  const withDate = all.filter((a) => a.appointment_at);
+  const upcoming = withDate.filter((a) => new Date(a.appointment_at!).getTime() >= now.getTime());
+  const past = withDate.filter((a) => new Date(a.appointment_at!).getTime() < now.getTime());
+  const today = withDate.filter((a) => dayKey(new Date(a.appointment_at!)) === todayK);
+  const thisWeek = withDate.filter((a) => new Date(a.appointment_at!).getTime() >= startWeek.getTime());
+  const thisMonth = withDate.filter((a) => {
+    const d = new Date(a.appointment_at!);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  });
+
+  // patients
+  const byPatient = new Map<string, number>();
+  for (const a of all) {
+    const n = (a.patient_name ?? "").trim();
+    if (!n) continue;
+    byPatient.set(n, (byPatient.get(n) ?? 0) + 1);
+  }
+  const patients = [...byPatient.entries()].sort((a, b) => b[1] - a[1]);
+  const recurring = patients.filter(([, c]) => c > 1).length;
+
+  // types
+  const typeCounts = VISIT_TYPES.map((t) => ({
+    ...t,
+    count: all.filter((a) => (a.visit_types ?? []).includes(t.key)).length,
+  }));
+  const maxType = Math.max(1, ...typeCounts.map((t) => t.count));
+  const noType = all.filter((a) => (a.visit_types ?? []).length === 0).length;
+  const multi = all.filter((a) => (a.visit_types ?? []).length > 1).length;
+
+  // jours de la semaine
+  const dayNames = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+  const weekday = dayNames.map((label, i) => ({
+    label,
+    count: withDate.filter((a) => (new Date(a.appointment_at!).getDay() + 6) % 7 === i).length,
+  }));
+  const maxDay = Math.max(1, ...weekday.map((d) => d.count));
+
+  const incomplete = all.filter((a) => !a.patient_name || !a.phone || !a.appointment_at).length;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="grid grid-cols-2 gap-3">
+        <StatCard icon={<CalendarCheck className="w-4 h-4" />} label="Total RDV" value={all.length} />
+        <StatCard icon={<Clock className="w-4 h-4" />} label="À venir" value={upcoming.length} />
+        <StatCard icon={<History className="w-4 h-4" />} label="Passés" value={past.length} />
+        <StatCard icon={<Calendar className="w-4 h-4" />} label="Aujourd'hui" value={today.length} />
+        <StatCard icon={<Calendar className="w-4 h-4" />} label="Cette semaine" value={thisWeek.length} />
+        <StatCard icon={<Calendar className="w-4 h-4" />} label="Ce mois" value={thisMonth.length} />
+        <StatCard icon={<Users className="w-4 h-4" />} label="Patients" value={patients.length} />
+        <StatCard icon={<UserCheck className="w-4 h-4" />} label="Récurrents" value={recurring} />
+      </div>
+
+      <Panel title="Répartition par type de visite" icon={<Tag className="w-4 h-4" />}>
+        <div className="flex flex-col gap-2.5">
+          {typeCounts.map((t) => (
+            <div key={t.key}>
+              <div className="flex justify-between text-xs font-semibold mb-1">
+                <span>{t.emoji} {t.label}</span>
+                <span className="text-muted-foreground">
+                  {t.count} · {all.length ? Math.round((t.count / all.length) * 100) : 0}%
+                </span>
+              </div>
+              <div className="h-2.5 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full"
+                  style={{ width: `${(t.count / maxType) * 100}%`, backgroundImage: "var(--gradient-primary)" }}
+                />
+              </div>
+            </div>
+          ))}
+          <p className="text-[11px] text-muted-foreground mt-1">
+            {multi} rendez-vous avec plusieurs types · {noType} sans type
+          </p>
+        </div>
+      </Panel>
+
+      <Panel title="Activité par jour de la semaine" icon={<BarChart3 className="w-4 h-4" />}>
+        <div className="flex items-end justify-between gap-1.5 h-32">
+          {weekday.map((d) => (
+            <div key={d.label} className="flex-1 h-full flex flex-col items-center gap-1">
+              <span className="text-[10px] font-semibold text-muted-foreground">{d.count}</span>
+              <div className="flex-1 w-full flex items-end">
+                <div
+                  className="w-full rounded-t-lg"
+                  style={{
+                    height: `${Math.max(4, (d.count / maxDay) * 100)}%`,
+                    backgroundImage: "var(--gradient-primary)",
+                  }}
+                />
+              </div>
+              <span className="text-[10px] font-semibold text-muted-foreground">{d.label}</span>
+            </div>
+          ))}
+        </div>
+      </Panel>
+
+      <Panel title="Patients les plus fréquents" icon={<Users className="w-4 h-4" />}>
+        {patients.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Aucun patient nommé.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {patients.slice(0, 6).map(([name, count]) => (
+              <div key={name} className="flex items-center justify-between text-sm">
+                <span className="truncate font-medium">{name}</span>
+                <span className="text-xs font-semibold bg-secondary text-secondary-foreground rounded-full px-2 py-0.5">
+                  {count} visite{count > 1 ? "s" : ""}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Panel>
+
+      <Panel title="Qualité des dossiers" icon={<ClipboardList className="w-4 h-4" />}>
+        <p className="text-sm">
+          <span className="font-bold text-primary">{all.length - incomplete}</span> dossiers complets ·{" "}
+          <span className="font-bold text-destructive">{incomplete}</span> incomplets
+        </p>
+        <div className="h-2.5 rounded-full bg-muted overflow-hidden mt-2">
+          <div
+            className="h-full rounded-full"
+            style={{
+              width: `${((all.length - incomplete) / all.length) * 100}%`,
+              backgroundImage: "var(--gradient-primary)",
+            }}
+          />
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
+  return (
+    <div className="bg-card rounded-2xl border border-border shadow-sm p-3.5">
+      <span className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
+        {icon} {label}
+      </span>
+      <p className="text-2xl font-bold mt-1">{value}</p>
+    </div>
+  );
+}
+
+function Panel({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="bg-card rounded-3xl border border-border shadow-sm p-4">
+      <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5 mb-3">
+        {icon} {title}
+      </p>
+      {children}
     </div>
   );
 }

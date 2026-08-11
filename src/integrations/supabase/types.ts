@@ -27,6 +27,7 @@ export type Database = {
           private_notes: string | null
           reason: string | null
           treatment: string | null
+          visit_types: string[]
         }
         Insert: {
           allergies?: string | null
@@ -40,6 +41,7 @@ export type Database = {
           private_notes?: string | null
           reason?: string | null
           treatment?: string | null
+          visit_types?: string[]
         }
         Update: {
           allergies?: string | null
@@ -53,6 +55,7 @@ export type Database = {
           private_notes?: string | null
           reason?: string | null
           treatment?: string | null
+          visit_types?: string[]
         }
         Relationships: []
       }

@@ -1,0 +1,1 @@
+ALTER TABLE public.appointments ADD COLUMN IF NOT EXISTS visit_types text[] NOT NULL DEFAULT '{}'::text[];
