@@ -17,7 +17,7 @@ import {
 } from "@/components/ai-elements/prompt-input";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 
-const STORAGE_KEY = "bahja_chat_v1";
+const STORAGE_KEY = "joy_chat_v1";
 
 const SUGGESTIONS = [
   "Les rendez-vous d'aujourd'hui ?",
@@ -36,16 +36,16 @@ function loadMessages(): UIMessage[] {
   }
 }
 
-export function BahjaChat() {
+export function JoyChat() {
   const [initial] = useState<UIMessage[]>(() => loadMessages());
   const [input, setInput] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const { messages, sendMessage, status, setMessages } = useChat({
-    id: "bahja",
+    id: "joy",
     messages: initial,
     transport: new DefaultChatTransport({ api: "/api/chat" }),
-    onError: (e) => toast.error(e.message || "Bahja n'a pas pu répondre"),
+    onError: (e) => toast.error(e.message || "Joy n'a pas pu répondre"),
   });
 
   const isLoading = status === "submitted" || status === "streaming";
@@ -74,7 +74,7 @@ export function BahjaChat() {
   const reset = () => {
     setMessages([]);
     localStorage.removeItem(STORAGE_KEY);
-    toast.success("Nouvelle discussion avec Bahja");
+    toast.success("Nouvelle discussion avec Joy");
   };
 
   return (
@@ -87,7 +87,7 @@ export function BahjaChat() {
           <MessageCircleHeart className="w-5 h-5" />
         </div>
         <div className="flex-1">
-          <p className="font-bold leading-tight">Bahja</p>
+          <p className="font-bold leading-tight">Joy</p>
           <p className="text-xs text-muted-foreground">
             Votre secrétaire IA — elle connaît tous les rendez-vous
           </p>
@@ -153,7 +153,7 @@ export function BahjaChat() {
             })}
 
             {status === "submitted" && (
-              <Shimmer className="text-sm">Bahja réfléchit…</Shimmer>
+              <Shimmer className="text-sm">Joy réfléchit…</Shimmer>
             )}
           </ConversationContent>
           <ConversationScrollButton />
@@ -170,7 +170,7 @@ export function BahjaChat() {
               value={input}
               autoFocus
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Écrivez à Bahja…"
+              placeholder="Écrivez à Joy…"
             />
             <PromptInputFooter className="justify-end">
               <PromptInputSubmit

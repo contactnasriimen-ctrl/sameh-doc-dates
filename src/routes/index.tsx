@@ -12,16 +12,16 @@ import {
   bookAppointment, listAppointments, deleteAppointment, updateAppointment,
 } from "@/lib/appointments.functions";
 import { toast, Toaster } from "sonner";
-import { BahjaChat } from "@/components/BahjaChat";
+import { JoyChat } from "@/components/JoyChat";
 import logoAsset from "@/assets/dr-sameh-logo.png.asset.json";
 
 // Change these PINs to your own
-const PIN_DOCTOR = "1234";
-const PIN_SECRETARY = "0000";
+const PIN_DOCTOR = "bruno silencio";
+const PIN_SECRETARY = "1234";
 const ROLE_KEY = "cabinet_role_v1";
 
 type Role = "doctor" | "secretary";
-type Tab = "book" | "history" | "records" | "stats" | "bahja";
+type Tab = "book" | "history" | "records" | "stats" | "joy";
 
 export const VISIT_TYPES = [
   { key: "classique", label: "Consultation classique", short: "Classique", emoji: "🩺" },
@@ -123,7 +123,7 @@ function Home() {
             {tab === "history" && <HistoryList role={role} />}
             {tab === "records" && role === "doctor" && <PatientRecords />}
             {tab === "stats" && <StatsDashboard />}
-            {tab === "bahja" && role === "doctor" && <BahjaChat />}
+            {tab === "joy" && role === "doctor" && <JoyChat />}
             <p className="text-center text-xs text-muted-foreground mt-2 flex items-center justify-center gap-1">
               Fait avec <Heart className="w-3 h-3 fill-primary text-primary" /> pour Dr. Sameh
             </p>
@@ -173,12 +173,12 @@ function PinGate({ onLogin }: { onLogin: (r: Role) => void }) {
       <form onSubmit={submit} className="bg-card rounded-3xl p-5 border border-border flex flex-col gap-4 shadow-sm">
         <input
           type="password"
-          inputMode="numeric"
+          
           autoFocus
           value={pin}
           onChange={(e) => setPin(e.target.value)}
-          placeholder="••••"
-          className="cute-input text-center text-2xl tracking-[0.5em] font-bold"
+          placeholder="Code d'accès"
+          className="cute-input text-center text-lg tracking-widest font-bold"
         />
         <button
           type="submit"
@@ -276,8 +276,8 @@ function Tabs({ tab, setTab, role }: { tab: Tab; setTab: (t: Tab) => void; role:
         <BarChart3 className="w-4 h-4" /> Stats
       </button>
       {role === "doctor" && (
-        <button className={btn(tab === "bahja")} onClick={() => setTab("bahja")}>
-          <MessageCircleHeart className="w-4 h-4" /> Bahja
+        <button className={btn(tab === "joy")} onClick={() => setTab("joy")}>
+          <MessageCircleHeart className="w-4 h-4" /> Joy
         </button>
       )}
     </div>
