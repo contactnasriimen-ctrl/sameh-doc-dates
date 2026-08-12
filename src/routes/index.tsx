@@ -599,6 +599,7 @@ function HistoryList({ role }: { role: Role }) {
   const { data, isLoading } = useQuery(appointmentsQO());
   const del = useServerFn(deleteAppointment);
   const [selected, setSelected] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   const delMutation = useMutation({
     mutationFn: (id: string) => del({ data: { id } }),
@@ -630,12 +631,35 @@ function HistoryList({ role }: { role: Role }) {
     const tb = b.appointment_at ? new Date(b.appointment_at).getTime() : Infinity;
     return ta - tb;
   });
-  const list = selected
-    ? sorted.filter((a) => a.appointment_at && dayKey(new Date(a.appointment_at)) === selected)
-    : sorted;
+  const q = search.trim().toLowerCase();
+  const list = sorted.filter((a) => {
+    const matchesDay = selected ? a.appointment_at && dayKey(new Date(a.appointment_at)) === selected : true;
+    if (!q) return matchesDay;
+    const haystack = [
+      a.patient_name,
+      a.phone,
+      a.reason,
+      ...(a.visit_types ?? []).map((k) => visitLabel(k)),
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    return matchesDay && haystack.includes(q);
+  });
 
   return (
     <div className="flex flex-col gap-3">
+      <div className="bg-card rounded-3xl p-4 border border-border shadow-sm">
+        <div className="relative">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Rechercher un rendez-vous..."
+            className="cute-input pl-9"
+          />
+        </div>
+      </div>
       <MonthCalendar appts={all} selected={selected} onSelect={setSelected} />
       {selected && (
         <p className="text-xs font-semibold text-muted-foreground px-1">
@@ -647,7 +671,7 @@ function HistoryList({ role }: { role: Role }) {
       )}
       {list.length === 0 ? (
         <div className="bg-card rounded-2xl border border-border p-6 text-center text-sm text-muted-foreground">
-          Aucun rendez-vous ce jour-là.
+          {q ? "Aucun résultat pour cette recherche." : "Aucun rendez-vous ce jour-là."}
         </div>
       ) : (
         list.map((a) => (
