@@ -741,6 +741,10 @@ function HistoryList({ role }: { role: Role }) {
   const del = useServerFn(deleteAppointment);
   const [selected, setSelected] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [fSource, setFSource] = useState<string | null>(null);
+  const [fType, setFType] = useState<string | null>(null);
+  const [fWhen, setFWhen] = useState<"all" | "upcoming" | "past">("all");
+  const [showFilters, setShowFilters] = useState(false);
 
   const delMutation = useMutation({
     mutationFn: (id: string) => del({ data: { id } }),
@@ -774,19 +778,33 @@ function HistoryList({ role }: { role: Role }) {
   });
   const q = search.trim().toLowerCase();
   const list = sorted.filter((a) => {
-    const matchesDay = selected ? a.appointment_at && dayKey(new Date(a.appointment_at)) === selected : true;
-    if (!q) return matchesDay;
+    if (selected && !(a.appointment_at && dayKey(new Date(a.appointment_at)) === selected)) return false;
+    if (fSource && a.referral_source !== fSource) return false;
+    if (fType && !(a.visit_types ?? []).includes(fType)) return false;
+    if (fWhen !== "all") {
+      if (!a.appointment_at) return false;
+      const t = new Date(a.appointment_at).getTime();
+      if (fWhen === "upcoming" && t < Date.now()) return false;
+      if (fWhen === "past" && t >= Date.now()) return false;
+    }
+    if (!q) return true;
     const haystack = [
-      a.patient_name,
-      a.phone,
-      a.reason,
+      a.patient_name, a.phone, a.reason, a.address, a.atcd, a.illness_history,
+      a.physical_exam, a.complementary_exam, a.diagnosis, a.treatment,
+      a.evolution, a.private_notes, a.referral_detail,
+      referralLabel(a.referral_source),
       ...(a.visit_types ?? []).map((k) => visitLabel(k)),
     ]
       .filter(Boolean)
       .join(" ")
       .toLowerCase();
-    return matchesDay && haystack.includes(q);
+    return haystack.includes(q);
   });
+  const activeFilters = (fSource ? 1 : 0) + (fType ? 1 : 0) + (fWhen !== "all" ? 1 : 0);
+  const chip = (active: boolean) =>
+    `px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all active:scale-95 ${
+      active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"
+    }`;
 
   return (
     <div className="flex flex-col gap-3">
@@ -796,10 +814,78 @@ function HistoryList({ role }: { role: Role }) {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Rechercher un rendez-vous..."
+            placeholder="Rechercher (nom, tél, motif, diagnostic...)"
             className="cute-input pl-9"
           />
         </div>
+        <button
+          type="button"
+          onClick={() => setShowFilters((v) => !v)}
+          className="mt-3 w-full flex items-center justify-between text-xs font-semibold text-primary"
+        >
+          <span className="flex items-center gap-1.5">
+            <SlidersHorizontal className="w-3.5 h-3.5" /> Filtres
+            {activeFilters > 0 && (
+              <span className="bg-primary text-primary-foreground rounded-full px-1.5 text-[10px]">
+                {activeFilters}
+              </span>
+            )}
+          </span>
+          {showFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
+        {showFilters && (
+          <div className="mt-3 flex flex-col gap-3">
+            <div>
+              <p className="text-[11px] font-semibold text-muted-foreground mb-1.5">Période</p>
+              <div className="flex flex-wrap gap-1.5">
+                {([["all", "Tous"], ["upcoming", "À venir"], ["past", "Passés"]] as const).map(([k, l]) => (
+                  <button key={k} type="button" onClick={() => setFWhen(k)} className={chip(fWhen === k)}>
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold text-muted-foreground mb-1.5">Type de visite</p>
+              <div className="flex flex-wrap gap-1.5">
+                {VISIT_TYPES.map((t) => (
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => setFType(fType === t.key ? null : t.key)}
+                    className={chip(fType === t.key)}
+                  >
+                    {t.emoji} {t.short}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold text-muted-foreground mb-1.5">Adressée par</p>
+              <div className="flex flex-wrap gap-1.5">
+                {REFERRAL_SOURCES.map((r) => (
+                  <button
+                    key={r.key}
+                    type="button"
+                    onClick={() => setFSource(fSource === r.key ? null : r.key)}
+                    className={chip(fSource === r.key)}
+                  >
+                    {r.emoji} {r.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {(activeFilters > 0 || selected) && (
+              <button
+                type="button"
+                onClick={() => { setFSource(null); setFType(null); setFWhen("all"); setSelected(null); }}
+                className="text-[11px] font-semibold text-muted-foreground underline self-start"
+              >
+                Réinitialiser les filtres
+              </button>
+            )}
+          </div>
+        )}
       </div>
       <MonthCalendar appts={all} selected={selected} onSelect={setSelected} />
       {selected && (
@@ -891,6 +977,14 @@ function AppointmentCard({
           )}
 
           <VisitTypeBadges types={appt.visit_types ?? []} />
+
+          {appt.referral_source && (
+            <p className="text-[10px] font-semibold mt-2 inline-flex items-center gap-1 bg-muted text-muted-foreground rounded-full px-2 py-0.5">
+              <Share2 className="w-3 h-3" /> {referralInfo(appt.referral_source)?.emoji}{" "}
+              {referralLabel(appt.referral_source)}
+              {appt.referral_detail ? ` — ${appt.referral_detail}` : ""}
+            </p>
+          )}
 
           {appt.reason && (
             <p className="text-sm mt-2 bg-muted rounded-xl px-3 py-2">{appt.reason}</p>
@@ -1187,6 +1281,10 @@ function PatientRecords() {
   const { data, isLoading } = useQuery(appointmentsQO());
   const [selected, setSelected] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [fSource, setFSource] = useState<string | null>(null);
+  const [fType, setFType] = useState<string | null>(null);
+  const [fWhen, setFWhen] = useState<"all" | "upcoming" | "past">("all");
+  const [showFilters, setShowFilters] = useState(false);
 
   if (isLoading) {
     return <div className="bg-card rounded-3xl p-8 text-center text-muted-foreground">Chargement...</div>;
