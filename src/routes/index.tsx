@@ -954,6 +954,8 @@ function EditAppointment({ appt, onClose }: { appt: Appointment; onClose: () => 
     reason: appt.reason ?? "",
   });
   const [types, setTypes] = useState<string[]>(appt.visit_types ?? []);
+  const [source, setSource] = useState<string | null>(appt.referral_source ?? null);
+  const [sourceDetail, setSourceDetail] = useState(appt.referral_detail ?? "");
 
   const mutation = useMutation({
     mutationFn: () => {
@@ -973,6 +975,14 @@ function EditAppointment({ appt, onClose }: { appt: Appointment; onClose: () => 
           allergies: appt.allergies,
           private_notes: appt.private_notes,
           visit_types: types,
+          referral_source: source,
+          referral_detail: source ? sourceDetail || null : null,
+          address: appt.address,
+          atcd: appt.atcd,
+          illness_history: appt.illness_history,
+          physical_exam: appt.physical_exam,
+          complementary_exam: appt.complementary_exam,
+          evolution: appt.evolution,
         } as never,
       });
     },
@@ -1021,6 +1031,14 @@ function EditAppointment({ appt, onClose }: { appt: Appointment; onClose: () => 
       <Field icon={<Tag className="w-4 h-4" />} label="Type de visite">
         <VisitTypePicker value={types} onChange={setTypes} />
       </Field>
+      <Field icon={<Share2 className="w-4 h-4" />} label="Adressée par">
+        <ReferralPicker
+          value={source}
+          detail={sourceDetail}
+          onChange={setSource}
+          onDetail={setSourceDetail}
+        />
+      </Field>
       <Field icon={<Sparkles className="w-4 h-4" />} label="Motif">
         <textarea
           value={form.reason}
@@ -1062,12 +1080,18 @@ function EditAppointment({ appt, onClose }: { appt: Appointment; onClose: () => 
 function MedicalFile({ appt }: { appt: Appointment }) {
   const qc = useQueryClient();
   const update = useServerFn(updateAppointment);
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<Record<string, string>>({
+    address: appt.address ?? "",
+    atcd: appt.atcd ?? "",
+    illness_history: appt.illness_history ?? "",
+    physical_exam: appt.physical_exam ?? "",
+    complementary_exam: appt.complementary_exam ?? "",
     diagnosis: appt.diagnosis ?? "",
     treatment: appt.treatment ?? "",
+    evolution: appt.evolution ?? "",
+    private_notes: appt.private_notes ?? "",
     medical_history: appt.medical_history ?? "",
     allergies: appt.allergies ?? "",
-    private_notes: appt.private_notes ?? "",
   });
 
   const mutation = useMutation({
@@ -1080,7 +1104,11 @@ function MedicalFile({ appt }: { appt: Appointment }) {
           appointment_at: appt.appointment_at,
           reason: appt.reason,
           visit_types: appt.visit_types ?? [],
-          ...form,
+          referral_source: appt.referral_source,
+          referral_detail: appt.referral_detail,
+          ...Object.fromEntries(
+            Object.entries(form).map(([k, v]) => [k, v.trim() ? v : null]),
+          ),
         } as never,
       }),
     onSuccess: () => {
@@ -1090,11 +1118,11 @@ function MedicalFile({ appt }: { appt: Appointment }) {
     onError: (e: Error) => toast.error(e.message || "Erreur"),
   });
 
-  const ta = (key: keyof typeof form, label: string, placeholder: string) => (
+  const ta = (key: string, label: string, placeholder: string) => (
     <label className="flex flex-col gap-1">
       <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</span>
       <textarea
-        value={form[key]}
+        value={form[key] ?? ""}
         onChange={(e) => setForm({ ...form, [key]: e.target.value })}
         placeholder={placeholder}
         rows={2}
@@ -1105,11 +1133,10 @@ function MedicalFile({ appt }: { appt: Appointment }) {
 
   return (
     <div className="p-4 bg-primary/5 border-t border-border flex flex-col gap-3">
-      {ta("diagnosis", "Diagnostic", "Diagnostic médical...")}
-      {ta("treatment", "Traitement", "Médicaments prescrits, posologie...")}
-      {ta("medical_history", "Antécédents", "Historique médical, chirurgies...")}
+      {CLINICAL_FIELDS.map((f) => (
+        <div key={f.key}>{ta(f.key, f.label, f.placeholder)}</div>
+      ))}
       {ta("allergies", "Allergies", "Médicaments, aliments...")}
-      {ta("private_notes", "Notes privées", "Observations confidentielles...")}
       <button
         onClick={() => mutation.mutate()}
         disabled={mutation.isPending}
@@ -1258,8 +1285,17 @@ function PatientDetail({ group, onBack }: { group: PatientGroup; onBack: () => v
           phone: master.phone,
           appointment_at: master.appointment_at,
           reason: master.reason,
+          visit_types: master.visit_types ?? [],
+          referral_source: master.referral_source,
+          referral_detail: master.referral_detail,
+          address: master.address,
+          atcd: master.atcd,
+          illness_history: master.illness_history,
+          physical_exam: master.physical_exam,
+          complementary_exam: master.complementary_exam,
+          evolution: master.evolution,
           ...form,
-        },
+        } as never,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["appointments"] });
@@ -1280,7 +1316,7 @@ function PatientDetail({ group, onBack }: { group: PatientGroup; onBack: () => v
         <span className="text-xs font-bold text-primary uppercase tracking-wide">{label}</span>
       </div>
       <textarea
-        value={form[key]}
+        value={form[key] ?? ""}
         onChange={(e) => setForm({ ...form, [key]: e.target.value })}
         placeholder={placeholder}
         rows={3}
