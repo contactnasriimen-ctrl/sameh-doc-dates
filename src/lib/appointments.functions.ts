@@ -1,47 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
-import { z } from "zod";
-
-const emptyToNull = (v: unknown) =>
-  typeof v === "string" && v.trim() === "" ? null : v;
-
-const bookSchema = z.object({
-  patient_name: z.preprocess(emptyToNull, z.string().max(100).nullable().optional()),
-  phone: z.preprocess(emptyToNull, z.string().max(30).nullable().optional()),
-  appointment_at: z.preprocess(emptyToNull, z.string().nullable().optional()),
-  reason: z.preprocess(emptyToNull, z.string().max(500).nullable().optional()),
-  diagnosis: z.preprocess(emptyToNull, z.string().max(2000).nullable().optional()),
-  treatment: z.preprocess(emptyToNull, z.string().max(2000).nullable().optional()),
-  medical_history: z.preprocess(emptyToNull, z.string().max(2000).nullable().optional()),
-  allergies: z.preprocess(emptyToNull, z.string().max(1000).nullable().optional()),
-  private_notes: z.preprocess(emptyToNull, z.string().max(2000).nullable().optional()),
-  visit_types: z.array(z.string().max(50)).max(10).optional(),
-  referral_source: z.preprocess(emptyToNull, z.string().max(50).nullable().optional()),
-  referral_detail: z.preprocess(emptyToNull, z.string().max(300).nullable().optional()),
-  address: z.preprocess(emptyToNull, z.string().max(300).nullable().optional()),
-  atcd: z.preprocess(emptyToNull, z.string().max(3000).nullable().optional()),
-  illness_history: z.preprocess(emptyToNull, z.string().max(3000).nullable().optional()),
-  physical_exam: z.preprocess(emptyToNull, z.string().max(3000).nullable().optional()),
-  complementary_exam: z.preprocess(emptyToNull, z.string().max(3000).nullable().optional()),
-  evolution: z.preprocess(emptyToNull, z.string().max(3000).nullable().optional()),
-});
-
-const EXTRA_KEYS = [
-  "referral_source",
-  "referral_detail",
-  "address",
-  "atcd",
-  "illness_history",
-  "physical_exam",
-  "complementary_exam",
-  "evolution",
-] as const;
-
-function extras(data: Record<string, unknown>) {
-  const out: Record<string, unknown> = {};
-  for (const k of EXTRA_KEYS) out[k] = (data[k] as string | null | undefined) ?? null;
-  return out;
-}
+import { bookSchema, updateSchema, idSchema, extras } from "./appointments.schema";
 
 function getClient() {
   const url = process.env.SUPABASE_URL!;
@@ -98,8 +57,6 @@ export const listAppointments = createServerFn({ method: "GET" }).handler(
   },
 );
 
-const updateSchema = bookSchema.extend({ id: z.string().uuid() });
-
 export const updateAppointment = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => updateSchema.parse(data))
   .handler(async ({ data }) => {
@@ -126,7 +83,7 @@ export const updateAppointment = createServerFn({ method: "POST" })
   });
 
 export const deleteAppointment = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => z.object({ id: z.string().uuid() }).parse(data))
+  .inputValidator((data: unknown) => idSchema.parse(data))
   .handler(async ({ data }) => {
     const supabase = getClient();
     const { error } = await supabase
