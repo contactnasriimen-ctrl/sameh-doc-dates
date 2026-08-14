@@ -1,22 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
-import { z } from "zod";
-
-const emptyToNull = (v: unknown) =>
-  typeof v === "string" && v.trim() === "" ? null : v;
-
-const bookSchema = z.object({
-  patient_name: z.preprocess(emptyToNull, z.string().max(100).nullable().optional()),
-  phone: z.preprocess(emptyToNull, z.string().max(30).nullable().optional()),
-  appointment_at: z.preprocess(emptyToNull, z.string().nullable().optional()),
-  reason: z.preprocess(emptyToNull, z.string().max(500).nullable().optional()),
-  diagnosis: z.preprocess(emptyToNull, z.string().max(2000).nullable().optional()),
-  treatment: z.preprocess(emptyToNull, z.string().max(2000).nullable().optional()),
-  medical_history: z.preprocess(emptyToNull, z.string().max(2000).nullable().optional()),
-  allergies: z.preprocess(emptyToNull, z.string().max(1000).nullable().optional()),
-  private_notes: z.preprocess(emptyToNull, z.string().max(2000).nullable().optional()),
-  visit_types: z.array(z.string().max(50)).max(10).optional(),
-});
+import { bookSchema, updateSchema, idSchema, extras } from "./appointments.schema";
 
 function getClient() {
   const url = process.env.SUPABASE_URL!;
@@ -53,6 +37,7 @@ export const bookAppointment = createServerFn({ method: "POST" })
         allergies: data.allergies ?? null,
         private_notes: data.private_notes ?? null,
         visit_types: data.visit_types ?? [],
+        ...extras(data as Record<string, unknown>),
       })
       .select()
       .single();
@@ -72,8 +57,6 @@ export const listAppointments = createServerFn({ method: "GET" }).handler(
   },
 );
 
-const updateSchema = bookSchema.extend({ id: z.string().uuid() });
-
 export const updateAppointment = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => updateSchema.parse(data))
   .handler(async ({ data }) => {
@@ -92,6 +75,7 @@ export const updateAppointment = createServerFn({ method: "POST" })
         allergies: rest.allergies ?? null,
         private_notes: rest.private_notes ?? null,
         visit_types: rest.visit_types ?? [],
+        ...extras(rest as Record<string, unknown>),
       })
       .eq("id", id);
     if (error) throw new Error(error.message);
@@ -99,7 +83,7 @@ export const updateAppointment = createServerFn({ method: "POST" })
   });
 
 export const deleteAppointment = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => z.object({ id: z.string().uuid() }).parse(data))
+  .inputValidator((data: unknown) => idSchema.parse(data))
   .handler(async ({ data }) => {
     const supabase = getClient();
     const { error } = await supabase

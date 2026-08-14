@@ -7,6 +7,7 @@ import {
   History, Plus, Trash2, Lock, LogOut, FileText, ChevronDown, ChevronUp, Save,
   FolderHeart, ArrowLeft, Search, Pill, AlertTriangle, ClipboardList, NotebookPen,
   Pencil, X, MessageCircleHeart, BarChart3, Users, CalendarCheck, Tag, UserCheck,
+  MapPin, Share2, Activity, TrendingUp, Microscope, Filter, SlidersHorizontal,
 } from "lucide-react";
 import {
   bookAppointment, listAppointments, deleteAppointment, updateAppointment,
@@ -33,6 +34,74 @@ export const VISIT_TYPES = [
 const visitLabel = (k: string) =>
   VISIT_TYPES.find((v) => v.key === k)?.label ?? k;
 const visitEmoji = (k: string) => VISIT_TYPES.find((v) => v.key === k)?.emoji ?? "•";
+
+export const REFERRAL_SOURCES = [
+  { key: "google", label: "Google", emoji: "🔎", detailLabel: "Recherche / mot-clé", placeholder: "Ex. médecin holistique Tunis" },
+  { key: "tiktok", label: "TikTok", emoji: "🎵", detailLabel: "Compte ou vidéo TikTok", placeholder: "Ex. @dr.sameh — vidéo sur le stress" },
+  { key: "contact", label: "Contact", emoji: "🤝", detailLabel: "Nom de la personne qui a adressé", placeholder: "Ex. Mme Farah Mansour" },
+] as const;
+
+const referralInfo = (k?: string | null) =>
+  REFERRAL_SOURCES.find((r) => r.key === k);
+const referralLabel = (k?: string | null) => referralInfo(k)?.label ?? "";
+
+function ReferralPicker({
+  value, detail, onChange, onDetail,
+}: {
+  value: string | null;
+  detail: string;
+  onChange: (v: string | null) => void;
+  onDetail: (v: string) => void;
+}) {
+  const info = referralInfo(value);
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap gap-2">
+        {REFERRAL_SOURCES.map((r) => {
+          const active = value === r.key;
+          return (
+            <button
+              key={r.key}
+              type="button"
+              onClick={() => onChange(active ? null : r.key)}
+              className={`px-3 py-2 rounded-2xl text-xs font-semibold border transition-all active:scale-95 ${
+                active
+                  ? "bg-primary text-primary-foreground border-primary shadow-[var(--shadow-cute)]"
+                  : "bg-muted text-muted-foreground border-transparent hover:text-foreground"
+              }`}
+            >
+              {r.emoji} {r.label}
+            </button>
+          );
+        })}
+      </div>
+      {info && (
+        <input
+          value={detail}
+          onChange={(e) => onDetail(e.target.value)}
+          placeholder={info.placeholder}
+          aria-label={info.detailLabel}
+          className="cute-input"
+        />
+      )}
+      {info && (
+        <span className="text-[11px] text-muted-foreground">{info.detailLabel}</span>
+      )}
+    </div>
+  );
+}
+
+const CLINICAL_FIELDS = [
+  { key: "address", label: "Adresse", placeholder: "Ville, rue..." },
+  { key: "atcd", label: "ATCD (antécédents)", placeholder: "Antécédents médicaux, chirurgicaux, familiaux..." },
+  { key: "illness_history", label: "Histoire de la maladie", placeholder: "Début, évolution des symptômes..." },
+  { key: "physical_exam", label: "Examen physique", placeholder: "TA, poids, auscultation..." },
+  { key: "complementary_exam", label: "Examen complémentaire", placeholder: "Bilans, imagerie, analyses..." },
+  { key: "diagnosis", label: "DG (diagnostic)", placeholder: "Diagnostic retenu..." },
+  { key: "treatment", label: "Traitement", placeholder: "Médicaments, posologie, durée..." },
+  { key: "evolution", label: "Évolution", placeholder: "Réponse au traitement, suivi..." },
+  { key: "private_notes", label: "Notes", placeholder: "Observations..." },
+] as const;
 
 function VisitTypePicker({
   value, onChange,
@@ -297,6 +366,10 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
   });
   const [types, setTypes] = useState<string[]>([]);
   const [known, setKnown] = useState<string | null>(null);
+  const [source, setSource] = useState<string | null>(null);
+  const [sourceDetail, setSourceDetail] = useState("");
+  const [clinical, setClinical] = useState<Record<string, string>>({});
+  const [openClinical, setOpenClinical] = useState(false);
 
   // Patients déjà venus : un clic remplit la fiche automatiquement
   const returning = (() => {
@@ -320,6 +393,19 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
       reason: a.reason ?? "",
     }));
     setTypes(a.visit_types ?? []);
+    setSource(a.referral_source ?? null);
+    setSourceDetail(a.referral_detail ?? "");
+    setClinical({
+      address: a.address ?? "",
+      atcd: a.atcd ?? "",
+      illness_history: a.illness_history ?? "",
+      physical_exam: a.physical_exam ?? "",
+      complementary_exam: a.complementary_exam ?? "",
+      diagnosis: a.diagnosis ?? "",
+      treatment: a.treatment ?? "",
+      evolution: a.evolution ?? "",
+      private_notes: a.private_notes ?? "",
+    });
     setKnown(a.patient_name ?? null);
     toast.success("Patient déjà connu — infos remplies ✨");
   };
@@ -331,6 +417,9 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
       toast.success("Rendez-vous enregistré ! 🌷");
       setForm({ patient_name: "", phone: "", date: "", time: "", reason: "" });
       setTypes([]);
+      setSource(null);
+      setSourceDetail("");
+      setClinical({});
       setKnown(null);
       onBooked();
     },
@@ -351,6 +440,11 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
       appointment_at: iso,
       reason: form.reason || null,
       visit_types: types,
+      referral_source: source,
+      referral_detail: source ? sourceDetail || null : null,
+      ...Object.fromEntries(
+        CLINICAL_FIELDS.map((f) => [f.key, clinical[f.key]?.trim() ? clinical[f.key] : null]),
+      ),
     } as never);
   };
 
@@ -423,6 +517,14 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
       <Field icon={<Tag className="w-4 h-4" />} label="Type de visite (plusieurs choix possibles)">
         <VisitTypePicker value={types} onChange={setTypes} />
       </Field>
+      <Field icon={<Share2 className="w-4 h-4" />} label="Adressée par">
+        <ReferralPicker
+          value={source}
+          detail={sourceDetail}
+          onChange={setSource}
+          onDetail={setSourceDetail}
+        />
+      </Field>
       <Field icon={<Sparkles className="w-4 h-4" />} label="Motif">
         <textarea
           value={form.reason}
@@ -432,6 +534,37 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
           className="cute-input resize-none"
         />
       </Field>
+
+      <div className="rounded-2xl border border-border overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setOpenClinical((o) => !o)}
+          className="w-full px-4 py-3 flex items-center justify-between text-xs font-semibold text-primary bg-primary/5"
+        >
+          <span className="flex items-center gap-1.5">
+            <ClipboardList className="w-3.5 h-3.5" /> Dossier clinique (optionnel)
+          </span>
+          {openClinical ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
+        {openClinical && (
+          <div className="p-4 flex flex-col gap-3">
+            {CLINICAL_FIELDS.map((f) => (
+              <label key={f.key} className="flex flex-col gap-1">
+                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                  {f.label}
+                </span>
+                <textarea
+                  value={clinical[f.key] ?? ""}
+                  onChange={(e) => setClinical({ ...clinical, [f.key]: e.target.value })}
+                  placeholder={f.placeholder}
+                  rows={2}
+                  className="cute-input resize-none text-sm"
+                />
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
       <button
         type="submit"
         disabled={mutation.isPending}
@@ -489,6 +622,14 @@ type Appointment = {
   allergies: string | null;
   private_notes: string | null;
   visit_types: string[] | null;
+  referral_source: string | null;
+  referral_detail: string | null;
+  address: string | null;
+  atcd: string | null;
+  illness_history: string | null;
+  physical_exam: string | null;
+  complementary_exam: string | null;
+  evolution: string | null;
   created_at: string;
 };
 
@@ -600,6 +741,10 @@ function HistoryList({ role }: { role: Role }) {
   const del = useServerFn(deleteAppointment);
   const [selected, setSelected] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [fSource, setFSource] = useState<string | null>(null);
+  const [fType, setFType] = useState<string | null>(null);
+  const [fWhen, setFWhen] = useState<"all" | "upcoming" | "past">("all");
+  const [showFilters, setShowFilters] = useState(false);
 
   const delMutation = useMutation({
     mutationFn: (id: string) => del({ data: { id } }),
@@ -633,19 +778,33 @@ function HistoryList({ role }: { role: Role }) {
   });
   const q = search.trim().toLowerCase();
   const list = sorted.filter((a) => {
-    const matchesDay = selected ? a.appointment_at && dayKey(new Date(a.appointment_at)) === selected : true;
-    if (!q) return matchesDay;
+    if (selected && !(a.appointment_at && dayKey(new Date(a.appointment_at)) === selected)) return false;
+    if (fSource && a.referral_source !== fSource) return false;
+    if (fType && !(a.visit_types ?? []).includes(fType)) return false;
+    if (fWhen !== "all") {
+      if (!a.appointment_at) return false;
+      const t = new Date(a.appointment_at).getTime();
+      if (fWhen === "upcoming" && t < Date.now()) return false;
+      if (fWhen === "past" && t >= Date.now()) return false;
+    }
+    if (!q) return true;
     const haystack = [
-      a.patient_name,
-      a.phone,
-      a.reason,
+      a.patient_name, a.phone, a.reason, a.address, a.atcd, a.illness_history,
+      a.physical_exam, a.complementary_exam, a.diagnosis, a.treatment,
+      a.evolution, a.private_notes, a.referral_detail,
+      referralLabel(a.referral_source),
       ...(a.visit_types ?? []).map((k) => visitLabel(k)),
     ]
       .filter(Boolean)
       .join(" ")
       .toLowerCase();
-    return matchesDay && haystack.includes(q);
+    return haystack.includes(q);
   });
+  const activeFilters = (fSource ? 1 : 0) + (fType ? 1 : 0) + (fWhen !== "all" ? 1 : 0);
+  const chip = (active: boolean) =>
+    `px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all active:scale-95 ${
+      active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"
+    }`;
 
   return (
     <div className="flex flex-col gap-3">
@@ -655,10 +814,78 @@ function HistoryList({ role }: { role: Role }) {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Rechercher un rendez-vous..."
+            placeholder="Rechercher (nom, tél, motif, diagnostic...)"
             className="cute-input pl-9"
           />
         </div>
+        <button
+          type="button"
+          onClick={() => setShowFilters((v) => !v)}
+          className="mt-3 w-full flex items-center justify-between text-xs font-semibold text-primary"
+        >
+          <span className="flex items-center gap-1.5">
+            <SlidersHorizontal className="w-3.5 h-3.5" /> Filtres
+            {activeFilters > 0 && (
+              <span className="bg-primary text-primary-foreground rounded-full px-1.5 text-[10px]">
+                {activeFilters}
+              </span>
+            )}
+          </span>
+          {showFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
+        {showFilters && (
+          <div className="mt-3 flex flex-col gap-3">
+            <div>
+              <p className="text-[11px] font-semibold text-muted-foreground mb-1.5">Période</p>
+              <div className="flex flex-wrap gap-1.5">
+                {([["all", "Tous"], ["upcoming", "À venir"], ["past", "Passés"]] as const).map(([k, l]) => (
+                  <button key={k} type="button" onClick={() => setFWhen(k)} className={chip(fWhen === k)}>
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold text-muted-foreground mb-1.5">Type de visite</p>
+              <div className="flex flex-wrap gap-1.5">
+                {VISIT_TYPES.map((t) => (
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => setFType(fType === t.key ? null : t.key)}
+                    className={chip(fType === t.key)}
+                  >
+                    {t.emoji} {t.short}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold text-muted-foreground mb-1.5">Adressée par</p>
+              <div className="flex flex-wrap gap-1.5">
+                {REFERRAL_SOURCES.map((r) => (
+                  <button
+                    key={r.key}
+                    type="button"
+                    onClick={() => setFSource(fSource === r.key ? null : r.key)}
+                    className={chip(fSource === r.key)}
+                  >
+                    {r.emoji} {r.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {(activeFilters > 0 || selected) && (
+              <button
+                type="button"
+                onClick={() => { setFSource(null); setFType(null); setFWhen("all"); setSelected(null); }}
+                className="text-[11px] font-semibold text-muted-foreground underline self-start"
+              >
+                Réinitialiser les filtres
+              </button>
+            )}
+          </div>
+        )}
       </div>
       <MonthCalendar appts={all} selected={selected} onSelect={setSelected} />
       {selected && (
@@ -751,6 +978,14 @@ function AppointmentCard({
 
           <VisitTypeBadges types={appt.visit_types ?? []} />
 
+          {appt.referral_source && (
+            <p className="text-[10px] font-semibold mt-2 inline-flex items-center gap-1 bg-muted text-muted-foreground rounded-full px-2 py-0.5">
+              <Share2 className="w-3 h-3" /> {referralInfo(appt.referral_source)?.emoji}{" "}
+              {referralLabel(appt.referral_source)}
+              {appt.referral_detail ? ` — ${appt.referral_detail}` : ""}
+            </p>
+          )}
+
           {appt.reason && (
             <p className="text-sm mt-2 bg-muted rounded-xl px-3 py-2">{appt.reason}</p>
           )}
@@ -813,6 +1048,8 @@ function EditAppointment({ appt, onClose }: { appt: Appointment; onClose: () => 
     reason: appt.reason ?? "",
   });
   const [types, setTypes] = useState<string[]>(appt.visit_types ?? []);
+  const [source, setSource] = useState<string | null>(appt.referral_source ?? null);
+  const [sourceDetail, setSourceDetail] = useState(appt.referral_detail ?? "");
 
   const mutation = useMutation({
     mutationFn: () => {
@@ -832,6 +1069,14 @@ function EditAppointment({ appt, onClose }: { appt: Appointment; onClose: () => 
           allergies: appt.allergies,
           private_notes: appt.private_notes,
           visit_types: types,
+          referral_source: source,
+          referral_detail: source ? sourceDetail || null : null,
+          address: appt.address,
+          atcd: appt.atcd,
+          illness_history: appt.illness_history,
+          physical_exam: appt.physical_exam,
+          complementary_exam: appt.complementary_exam,
+          evolution: appt.evolution,
         } as never,
       });
     },
@@ -880,6 +1125,14 @@ function EditAppointment({ appt, onClose }: { appt: Appointment; onClose: () => 
       <Field icon={<Tag className="w-4 h-4" />} label="Type de visite">
         <VisitTypePicker value={types} onChange={setTypes} />
       </Field>
+      <Field icon={<Share2 className="w-4 h-4" />} label="Adressée par">
+        <ReferralPicker
+          value={source}
+          detail={sourceDetail}
+          onChange={setSource}
+          onDetail={setSourceDetail}
+        />
+      </Field>
       <Field icon={<Sparkles className="w-4 h-4" />} label="Motif">
         <textarea
           value={form.reason}
@@ -921,12 +1174,18 @@ function EditAppointment({ appt, onClose }: { appt: Appointment; onClose: () => 
 function MedicalFile({ appt }: { appt: Appointment }) {
   const qc = useQueryClient();
   const update = useServerFn(updateAppointment);
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<Record<string, string>>({
+    address: appt.address ?? "",
+    atcd: appt.atcd ?? "",
+    illness_history: appt.illness_history ?? "",
+    physical_exam: appt.physical_exam ?? "",
+    complementary_exam: appt.complementary_exam ?? "",
     diagnosis: appt.diagnosis ?? "",
     treatment: appt.treatment ?? "",
+    evolution: appt.evolution ?? "",
+    private_notes: appt.private_notes ?? "",
     medical_history: appt.medical_history ?? "",
     allergies: appt.allergies ?? "",
-    private_notes: appt.private_notes ?? "",
   });
 
   const mutation = useMutation({
@@ -939,7 +1198,11 @@ function MedicalFile({ appt }: { appt: Appointment }) {
           appointment_at: appt.appointment_at,
           reason: appt.reason,
           visit_types: appt.visit_types ?? [],
-          ...form,
+          referral_source: appt.referral_source,
+          referral_detail: appt.referral_detail,
+          ...Object.fromEntries(
+            Object.entries(form).map(([k, v]) => [k, v.trim() ? v : null]),
+          ),
         } as never,
       }),
     onSuccess: () => {
@@ -949,11 +1212,11 @@ function MedicalFile({ appt }: { appt: Appointment }) {
     onError: (e: Error) => toast.error(e.message || "Erreur"),
   });
 
-  const ta = (key: keyof typeof form, label: string, placeholder: string) => (
+  const ta = (key: string, label: string, placeholder: string) => (
     <label className="flex flex-col gap-1">
       <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</span>
       <textarea
-        value={form[key]}
+        value={form[key] ?? ""}
         onChange={(e) => setForm({ ...form, [key]: e.target.value })}
         placeholder={placeholder}
         rows={2}
@@ -964,11 +1227,10 @@ function MedicalFile({ appt }: { appt: Appointment }) {
 
   return (
     <div className="p-4 bg-primary/5 border-t border-border flex flex-col gap-3">
-      {ta("diagnosis", "Diagnostic", "Diagnostic médical...")}
-      {ta("treatment", "Traitement", "Médicaments prescrits, posologie...")}
-      {ta("medical_history", "Antécédents", "Historique médical, chirurgies...")}
+      {CLINICAL_FIELDS.map((f) => (
+        <div key={f.key}>{ta(f.key, f.label, f.placeholder)}</div>
+      ))}
       {ta("allergies", "Allergies", "Médicaments, aliments...")}
-      {ta("private_notes", "Notes privées", "Observations confidentielles...")}
       <button
         onClick={() => mutation.mutate()}
         disabled={mutation.isPending}
@@ -1019,6 +1281,10 @@ function PatientRecords() {
   const { data, isLoading } = useQuery(appointmentsQO());
   const [selected, setSelected] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [fSource, setFSource] = useState<string | null>(null);
+  const [fType, setFType] = useState<string | null>(null);
+  const [fWhen, setFWhen] = useState<"all" | "upcoming" | "past">("all");
+  const [showFilters, setShowFilters] = useState(false);
 
   if (isLoading) {
     return <div className="bg-card rounded-3xl p-8 text-center text-muted-foreground">Chargement...</div>;
@@ -1117,8 +1383,17 @@ function PatientDetail({ group, onBack }: { group: PatientGroup; onBack: () => v
           phone: master.phone,
           appointment_at: master.appointment_at,
           reason: master.reason,
+          visit_types: master.visit_types ?? [],
+          referral_source: master.referral_source,
+          referral_detail: master.referral_detail,
+          address: master.address,
+          atcd: master.atcd,
+          illness_history: master.illness_history,
+          physical_exam: master.physical_exam,
+          complementary_exam: master.complementary_exam,
+          evolution: master.evolution,
           ...form,
-        },
+        } as never,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["appointments"] });
@@ -1139,7 +1414,7 @@ function PatientDetail({ group, onBack }: { group: PatientGroup; onBack: () => v
         <span className="text-xs font-bold text-primary uppercase tracking-wide">{label}</span>
       </div>
       <textarea
-        value={form[key]}
+        value={form[key] ?? ""}
         onChange={(e) => setForm({ ...form, [key]: e.target.value })}
         placeholder={placeholder}
         rows={3}

@@ -16,44 +16,68 @@ export type Database = {
     Tables: {
       appointments: {
         Row: {
+          address: string | null
           allergies: string | null
           appointment_at: string | null
+          atcd: string | null
+          complementary_exam: string | null
           created_at: string
           diagnosis: string | null
+          evolution: string | null
           id: string
+          illness_history: string | null
           medical_history: string | null
           patient_name: string | null
           phone: string | null
+          physical_exam: string | null
           private_notes: string | null
           reason: string | null
+          referral_detail: string | null
+          referral_source: string | null
           treatment: string | null
           visit_types: string[]
         }
         Insert: {
+          address?: string | null
           allergies?: string | null
           appointment_at?: string | null
+          atcd?: string | null
+          complementary_exam?: string | null
           created_at?: string
           diagnosis?: string | null
+          evolution?: string | null
           id?: string
+          illness_history?: string | null
           medical_history?: string | null
           patient_name?: string | null
           phone?: string | null
+          physical_exam?: string | null
           private_notes?: string | null
           reason?: string | null
+          referral_detail?: string | null
+          referral_source?: string | null
           treatment?: string | null
           visit_types?: string[]
         }
         Update: {
+          address?: string | null
           allergies?: string | null
           appointment_at?: string | null
+          atcd?: string | null
+          complementary_exam?: string | null
           created_at?: string
           diagnosis?: string | null
+          evolution?: string | null
           id?: string
+          illness_history?: string | null
           medical_history?: string | null
           patient_name?: string | null
           phone?: string | null
+          physical_exam?: string | null
           private_notes?: string | null
           reason?: string | null
+          referral_detail?: string | null
+          referral_source?: string | null
           treatment?: string | null
           visit_types?: string[]
         }
