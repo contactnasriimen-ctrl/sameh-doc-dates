@@ -7,6 +7,7 @@ import {
   History, Plus, Trash2, Lock, LogOut, FileText, ChevronDown, ChevronUp, Save,
   FolderHeart, ArrowLeft, Search, Pill, AlertTriangle, ClipboardList, NotebookPen,
   Pencil, X, MessageCircleHeart, BarChart3, Users, CalendarCheck, Tag, UserCheck,
+  MapPin, Share2, Activity, TrendingUp, Microscope, Filter, SlidersHorizontal,
 } from "lucide-react";
 import {
   bookAppointment, listAppointments, deleteAppointment, updateAppointment,
@@ -33,6 +34,74 @@ export const VISIT_TYPES = [
 const visitLabel = (k: string) =>
   VISIT_TYPES.find((v) => v.key === k)?.label ?? k;
 const visitEmoji = (k: string) => VISIT_TYPES.find((v) => v.key === k)?.emoji ?? "•";
+
+export const REFERRAL_SOURCES = [
+  { key: "google", label: "Google", emoji: "🔎", detailLabel: "Recherche / mot-clé", placeholder: "Ex. médecin holistique Tunis" },
+  { key: "tiktok", label: "TikTok", emoji: "🎵", detailLabel: "Compte ou vidéo TikTok", placeholder: "Ex. @dr.sameh — vidéo sur le stress" },
+  { key: "contact", label: "Contact", emoji: "🤝", detailLabel: "Nom de la personne qui a adressé", placeholder: "Ex. Mme Farah Mansour" },
+] as const;
+
+const referralInfo = (k?: string | null) =>
+  REFERRAL_SOURCES.find((r) => r.key === k);
+const referralLabel = (k?: string | null) => referralInfo(k)?.label ?? "";
+
+function ReferralPicker({
+  value, detail, onChange, onDetail,
+}: {
+  value: string | null;
+  detail: string;
+  onChange: (v: string | null) => void;
+  onDetail: (v: string) => void;
+}) {
+  const info = referralInfo(value);
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap gap-2">
+        {REFERRAL_SOURCES.map((r) => {
+          const active = value === r.key;
+          return (
+            <button
+              key={r.key}
+              type="button"
+              onClick={() => onChange(active ? null : r.key)}
+              className={`px-3 py-2 rounded-2xl text-xs font-semibold border transition-all active:scale-95 ${
+                active
+                  ? "bg-primary text-primary-foreground border-primary shadow-[var(--shadow-cute)]"
+                  : "bg-muted text-muted-foreground border-transparent hover:text-foreground"
+              }`}
+            >
+              {r.emoji} {r.label}
+            </button>
+          );
+        })}
+      </div>
+      {info && (
+        <input
+          value={detail}
+          onChange={(e) => onDetail(e.target.value)}
+          placeholder={info.placeholder}
+          aria-label={info.detailLabel}
+          className="cute-input"
+        />
+      )}
+      {info && (
+        <span className="text-[11px] text-muted-foreground">{info.detailLabel}</span>
+      )}
+    </div>
+  );
+}
+
+const CLINICAL_FIELDS = [
+  { key: "address", label: "Adresse", placeholder: "Ville, rue..." },
+  { key: "atcd", label: "ATCD (antécédents)", placeholder: "Antécédents médicaux, chirurgicaux, familiaux..." },
+  { key: "illness_history", label: "Histoire de la maladie", placeholder: "Début, évolution des symptômes..." },
+  { key: "physical_exam", label: "Examen physique", placeholder: "TA, poids, auscultation..." },
+  { key: "complementary_exam", label: "Examen complémentaire", placeholder: "Bilans, imagerie, analyses..." },
+  { key: "diagnosis", label: "DG (diagnostic)", placeholder: "Diagnostic retenu..." },
+  { key: "treatment", label: "Traitement", placeholder: "Médicaments, posologie, durée..." },
+  { key: "evolution", label: "Évolution", placeholder: "Réponse au traitement, suivi..." },
+  { key: "private_notes", label: "Notes", placeholder: "Observations..." },
+] as const;
 
 function VisitTypePicker({
   value, onChange,
@@ -297,6 +366,10 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
   });
   const [types, setTypes] = useState<string[]>([]);
   const [known, setKnown] = useState<string | null>(null);
+  const [source, setSource] = useState<string | null>(null);
+  const [sourceDetail, setSourceDetail] = useState("");
+  const [clinical, setClinical] = useState<Record<string, string>>({});
+  const [openClinical, setOpenClinical] = useState(false);
 
   // Patients déjà venus : un clic remplit la fiche automatiquement
   const returning = (() => {
@@ -320,6 +393,19 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
       reason: a.reason ?? "",
     }));
     setTypes(a.visit_types ?? []);
+    setSource(a.referral_source ?? null);
+    setSourceDetail(a.referral_detail ?? "");
+    setClinical({
+      address: a.address ?? "",
+      atcd: a.atcd ?? "",
+      illness_history: a.illness_history ?? "",
+      physical_exam: a.physical_exam ?? "",
+      complementary_exam: a.complementary_exam ?? "",
+      diagnosis: a.diagnosis ?? "",
+      treatment: a.treatment ?? "",
+      evolution: a.evolution ?? "",
+      private_notes: a.private_notes ?? "",
+    });
     setKnown(a.patient_name ?? null);
     toast.success("Patient déjà connu — infos remplies ✨");
   };
@@ -331,6 +417,9 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
       toast.success("Rendez-vous enregistré ! 🌷");
       setForm({ patient_name: "", phone: "", date: "", time: "", reason: "" });
       setTypes([]);
+      setSource(null);
+      setSourceDetail("");
+      setClinical({});
       setKnown(null);
       onBooked();
     },
@@ -351,6 +440,11 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
       appointment_at: iso,
       reason: form.reason || null,
       visit_types: types,
+      referral_source: source,
+      referral_detail: source ? sourceDetail || null : null,
+      ...Object.fromEntries(
+        CLINICAL_FIELDS.map((f) => [f.key, clinical[f.key]?.trim() ? clinical[f.key] : null]),
+      ),
     } as never);
   };
 
@@ -423,6 +517,14 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
       <Field icon={<Tag className="w-4 h-4" />} label="Type de visite (plusieurs choix possibles)">
         <VisitTypePicker value={types} onChange={setTypes} />
       </Field>
+      <Field icon={<Share2 className="w-4 h-4" />} label="Adressée par">
+        <ReferralPicker
+          value={source}
+          detail={sourceDetail}
+          onChange={setSource}
+          onDetail={setSourceDetail}
+        />
+      </Field>
       <Field icon={<Sparkles className="w-4 h-4" />} label="Motif">
         <textarea
           value={form.reason}
@@ -432,6 +534,37 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
           className="cute-input resize-none"
         />
       </Field>
+
+      <div className="rounded-2xl border border-border overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setOpenClinical((o) => !o)}
+          className="w-full px-4 py-3 flex items-center justify-between text-xs font-semibold text-primary bg-primary/5"
+        >
+          <span className="flex items-center gap-1.5">
+            <ClipboardList className="w-3.5 h-3.5" /> Dossier clinique (optionnel)
+          </span>
+          {openClinical ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
+        {openClinical && (
+          <div className="p-4 flex flex-col gap-3">
+            {CLINICAL_FIELDS.map((f) => (
+              <label key={f.key} className="flex flex-col gap-1">
+                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                  {f.label}
+                </span>
+                <textarea
+                  value={clinical[f.key] ?? ""}
+                  onChange={(e) => setClinical({ ...clinical, [f.key]: e.target.value })}
+                  placeholder={f.placeholder}
+                  rows={2}
+                  className="cute-input resize-none text-sm"
+                />
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
       <button
         type="submit"
         disabled={mutation.isPending}
@@ -489,6 +622,14 @@ type Appointment = {
   allergies: string | null;
   private_notes: string | null;
   visit_types: string[] | null;
+  referral_source: string | null;
+  referral_detail: string | null;
+  address: string | null;
+  atcd: string | null;
+  illness_history: string | null;
+  physical_exam: string | null;
+  complementary_exam: string | null;
+  evolution: string | null;
   created_at: string;
 };
 
