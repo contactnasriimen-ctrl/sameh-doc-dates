@@ -16,7 +16,32 @@ const bookSchema = z.object({
   allergies: z.preprocess(emptyToNull, z.string().max(1000).nullable().optional()),
   private_notes: z.preprocess(emptyToNull, z.string().max(2000).nullable().optional()),
   visit_types: z.array(z.string().max(50)).max(10).optional(),
+  referral_source: z.preprocess(emptyToNull, z.string().max(50).nullable().optional()),
+  referral_detail: z.preprocess(emptyToNull, z.string().max(300).nullable().optional()),
+  address: z.preprocess(emptyToNull, z.string().max(300).nullable().optional()),
+  atcd: z.preprocess(emptyToNull, z.string().max(3000).nullable().optional()),
+  illness_history: z.preprocess(emptyToNull, z.string().max(3000).nullable().optional()),
+  physical_exam: z.preprocess(emptyToNull, z.string().max(3000).nullable().optional()),
+  complementary_exam: z.preprocess(emptyToNull, z.string().max(3000).nullable().optional()),
+  evolution: z.preprocess(emptyToNull, z.string().max(3000).nullable().optional()),
 });
+
+const EXTRA_KEYS = [
+  "referral_source",
+  "referral_detail",
+  "address",
+  "atcd",
+  "illness_history",
+  "physical_exam",
+  "complementary_exam",
+  "evolution",
+] as const;
+
+function extras(data: Record<string, unknown>) {
+  const out: Record<string, unknown> = {};
+  for (const k of EXTRA_KEYS) out[k] = (data[k] as string | null | undefined) ?? null;
+  return out;
+}
 
 function getClient() {
   const url = process.env.SUPABASE_URL!;
@@ -53,6 +78,7 @@ export const bookAppointment = createServerFn({ method: "POST" })
         allergies: data.allergies ?? null,
         private_notes: data.private_notes ?? null,
         visit_types: data.visit_types ?? [],
+        ...extras(data as Record<string, unknown>),
       })
       .select()
       .single();
@@ -92,6 +118,7 @@ export const updateAppointment = createServerFn({ method: "POST" })
         allergies: rest.allergies ?? null,
         private_notes: rest.private_notes ?? null,
         visit_types: rest.visit_types ?? [],
+        ...extras(rest as Record<string, unknown>),
       })
       .eq("id", id);
     if (error) throw new Error(error.message);
