@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
-import { MessageCircleHeart, RotateCcw } from "lucide-react";
+import {
+  MessageCircleHeart, RotateCcw, Mic, Square, Loader2, Volume2, VolumeX,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   Conversation,
@@ -16,6 +18,7 @@ import {
   PromptInputSubmit,
 } from "@/components/ai-elements/prompt-input";
 import { Shimmer } from "@/components/ai-elements/shimmer";
+import { startRecording, type VoiceRecorder } from "@/lib/voice-recorder";
 
 const STORAGE_KEY = "joy_chat_v1";
 
@@ -76,6 +79,96 @@ export function JoyChat() {
     localStorage.removeItem(STORAGE_KEY);
     toast.success("Nouvelle discussion avec Joy");
   };
+
+  // ---- Vocal ----
+  const recorderRef = useRef<VoiceRecorder | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const [speakOn, setSpeakOn] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
+  const spokenRef = useRef<string | null>(null);
+
+  const startMic = async () => {
+    try {
+      recorderRef.current = await startRecording();
+      setRecording(true);
+    } catch {
+      toast.error("Micro indisponible — autorisez l'accès au microphone");
+    }
+  };
+
+  const stopMic = async () => {
+    const rec = recorderRef.current;
+    recorderRef.current = null;
+    setRecording(false);
+    if (!rec) return;
+    const blob = await rec.stop();
+    if (blob.size < 4096) {
+      toast.error("Enregistrement trop court — réessayez");
+      return;
+    }
+    setTranscribing(true);
+    try {
+      const form = new FormData();
+      form.append("audio", blob, "recording.wav");
+      const res = await fetch("/api/transcribe", { method: "POST", body: form });
+      if (!res.ok) throw new Error(await res.text().catch(() => ""));
+      const { text } = (await res.json()) as { text?: string };
+      const value = (text ?? "").trim();
+      if (!value) {
+        toast.error("Je n'ai rien entendu 🌿");
+        return;
+      }
+      send(value);
+    } catch (e) {
+      toast.error(e instanceof Error && e.message ? e.message : "Transcription échouée");
+    } finally {
+      setTranscribing(false);
+    }
+  };
+
+  const speak = async (text: string) => {
+    try {
+      setSpeaking(true);
+      const res = await fetch("/api/speech", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      if (!res.ok) throw new Error(await res.text().catch(() => ""));
+      const url = URL.createObjectURL(await res.blob());
+      audioRef.current?.pause();
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.onended = () => {
+        setSpeaking(false);
+        URL.revokeObjectURL(url);
+      };
+      await audio.play();
+    } catch (e) {
+      setSpeaking(false);
+      toast.error(e instanceof Error && e.message ? e.message : "Voix indisponible");
+    }
+  };
+
+  // Lecture automatique de la dernière réponse quand la voix est activée
+  useEffect(() => {
+    if (!speakOn || status !== "ready") return;
+    const last = messages[messages.length - 1];
+    if (!last || last.role !== "assistant") return;
+    const text = last.parts.map((p) => (p.type === "text" ? p.text : "")).join("").trim();
+    if (!text || spokenRef.current === last.id) return;
+    spokenRef.current = last.id;
+    void speak(text);
+  }, [messages, status, speakOn]);
+
+  useEffect(() => {
+    return () => {
+      recorderRef.current?.cancel();
+      audioRef.current?.pause();
+    };
+  }, []);
 
   return (
     <div className="flex flex-col gap-3">
