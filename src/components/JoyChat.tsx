@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
-import { MessageCircleHeart, RotateCcw } from "lucide-react";
+import {
+  MessageCircleHeart, RotateCcw, Mic, Square, Loader2, Volume2, VolumeX,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   Conversation,
@@ -16,6 +18,7 @@ import {
   PromptInputSubmit,
 } from "@/components/ai-elements/prompt-input";
 import { Shimmer } from "@/components/ai-elements/shimmer";
+import { startRecording, type VoiceRecorder } from "@/lib/voice-recorder";
 
 const STORAGE_KEY = "joy_chat_v1";
 
