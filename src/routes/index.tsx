@@ -39,6 +39,13 @@ export const REFERRAL_SOURCES = [
   { key: "google", label: "Google", emoji: "🔎", detailLabel: "Recherche / mot-clé", placeholder: "Ex. médecin holistique Tunis" },
   { key: "tiktok", label: "TikTok", emoji: "🎵", detailLabel: "Compte ou vidéo TikTok", placeholder: "Ex. @dr.sameh — vidéo sur le stress" },
   { key: "contact", label: "Contact", emoji: "🤝", detailLabel: "Nom de la personne qui a adressé", placeholder: "Ex. Mme Farah Mansour" },
+  { key: "facebook", label: "Facebook", emoji: "📘", detailLabel: "Page ou publication Facebook", placeholder: "Ex. page Dr. Sameh Aissa" },
+  { key: "instagram", label: "Instagram", emoji: "📸", detailLabel: "Compte ou publication Instagram", placeholder: "Ex. @dr.sameh — reel bien-être" },
+  { key: "medecin", label: "Médecin", emoji: "🩺", detailLabel: "Nom du médecin référent", placeholder: "Ex. Dr. Mezgheni (cardiologue)" },
+  { key: "famille", label: "Famille", emoji: "👨‍👩‍👧", detailLabel: "Lien de parenté / nom", placeholder: "Ex. sa sœur, patiente depuis 2024" },
+  { key: "pharmacie", label: "Pharmacie", emoji: "💊", detailLabel: "Nom de la pharmacie", placeholder: "Ex. Pharmacie Centrale, Ariana" },
+  { key: "passage", label: "Passage", emoji: "🚶", detailLabel: "Précision", placeholder: "Ex. a vu la plaque du cabinet" },
+  { key: "autre", label: "Autre", emoji: "✨", detailLabel: "Précisez la source", placeholder: "Ex. affiche, radio, événement..." },
 ] as const;
 
 const referralInfo = (k?: string | null) =>
