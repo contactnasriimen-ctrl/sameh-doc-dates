@@ -556,7 +556,7 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
           {openClinical ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </button>
         {openClinical && (
-          <div className="p-4 flex flex-col gap-3">
+          <div className="p-4 grid gap-3 md:grid-cols-2">
             {CLINICAL_FIELDS.map((f) => (
               <label key={f.key} className="flex flex-col gap-1">
                 <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
