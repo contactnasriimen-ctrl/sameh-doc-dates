@@ -1343,29 +1343,32 @@ function PatientRecords() {
           </p>
         </div>
       ) : (
-        filtered.map((g) => (
-          <button
-            key={g.name}
-            onClick={() => setSelected(g.name)}
-            className="bg-card rounded-2xl p-4 border border-border shadow-sm text-left hover:border-primary transition-colors flex items-center gap-3"
-          >
-            <div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-lg flex-shrink-0"
-              style={{ backgroundImage: "var(--gradient-primary)" }}
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((g) => (
+            <button
+              key={g.name}
+              onClick={() => setSelected(g.name)}
+              className="bg-card rounded-2xl p-4 border border-border shadow-sm text-left hover:border-primary transition-colors flex items-center gap-3"
             >
-              {g.name.charAt(0).toUpperCase()}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold truncate">{g.name}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {g.appointments.length} rendez-vous
-                {g.lastVisit && ` • dernier ${g.lastVisit.toLocaleDateString("fr-FR")}`}
-              </p>
-            </div>
-            <ChevronDown className="w-4 h-4 text-muted-foreground -rotate-90" />
-          </button>
-        ))
+              <div
+                className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-lg flex-shrink-0"
+                style={{ backgroundImage: "var(--gradient-primary)" }}
+              >
+                {g.name.charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold truncate">{g.name}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {g.appointments.length} rendez-vous
+                  {g.lastVisit && ` • dernier ${g.lastVisit.toLocaleDateString("fr-FR")}`}
+                </p>
+              </div>
+              <ChevronDown className="w-4 h-4 text-muted-foreground -rotate-90" />
+            </button>
+          ))}
+        </div>
       )}
+
     </div>
   );
 }
