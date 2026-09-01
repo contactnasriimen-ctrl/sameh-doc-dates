@@ -186,9 +186,10 @@ function Home() {
   };
 
   return (
-    <div className="min-h-screen w-full flex justify-center px-4 py-6">
+    <div className="min-h-screen w-full flex justify-center px-3 sm:px-5 py-6">
       <Toaster position="top-center" richColors />
-      <div className="w-full max-w-md flex flex-col gap-6">
+      <div className="w-full max-w-md md:max-w-3xl lg:max-w-5xl flex flex-col gap-6">
+
         {!role ? (
           <PinGate onLogin={login} />
         ) : (
