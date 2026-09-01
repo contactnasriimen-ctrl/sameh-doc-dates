@@ -913,16 +913,19 @@ function HistoryList({ role }: { role: Role }) {
           {q ? "Aucun résultat pour cette recherche." : "Aucun rendez-vous ce jour-là."}
         </div>
       ) : (
-        list.map((a) => (
-          <AppointmentCard
-            key={a.id}
-            appt={a}
-            role={role}
-            onDelete={() => delMutation.mutate(a.id)}
-            deleting={delMutation.isPending}
-          />
-        ))
+        <div className="grid gap-3 md:grid-cols-2 items-start">
+          {list.map((a) => (
+            <AppointmentCard
+              key={a.id}
+              appt={a}
+              role={role}
+              onDelete={() => delMutation.mutate(a.id)}
+              deleting={delMutation.isPending}
+            />
+          ))}
+        </div>
       )}
+
     </div>
   );
 }
