@@ -1723,9 +1723,53 @@ function StatsDashboard() {
 
   const incomplete = all.filter((a) => !a.patient_name || !a.phone || !a.appointment_at).length;
 
+  // 12 derniers mois
+  const months = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
+    const count = withDate.filter((a) => {
+      const x = new Date(a.appointment_at!);
+      return x.getMonth() === d.getMonth() && x.getFullYear() === d.getFullYear();
+    }).length;
+    return { label: d.toLocaleDateString("fr-FR", { month: "short" }), count };
+  });
+  const maxMonth = Math.max(1, ...months.map((m) => m.count));
+
+  // sources d'acquisition
+  const sources = REFERRAL_SOURCES.map((r) => ({
+    ...r,
+    count: all.filter((a) => a.referral_source === r.key).length,
+  }))
+    .filter((r) => r.count > 0)
+    .sort((a, b) => b.count - a.count);
+  const noSource = all.filter((a) => !a.referral_source).length;
+  const maxSource = Math.max(1, ...sources.map((s) => s.count));
+
+  // heures de pointe
+  const hours = Array.from({ length: 24 }, (_, h) => ({
+    h,
+    count: withDate.filter((a) => new Date(a.appointment_at!).getHours() === h).length,
+  })).filter((x) => x.count > 0);
+  const peak = hours.slice().sort((a, b) => b.count - a.count)[0];
+
+  // taux de retour + moyenne hebdo
+  const returnRate = patients.length ? Math.round((recurring / patients.length) * 100) : 0;
+  const avgVisits = patients.length
+    ? Math.round((all.length / patients.length) * 10) / 10
+    : 0;
+  const spanWeeks = (() => {
+    const times = withDate.map((a) => new Date(a.appointment_at!).getTime());
+    if (times.length < 2) return 1;
+    const weeks = (Math.max(...times) - Math.min(...times)) / (7 * 864e5);
+    return Math.max(1, Math.round(weeks));
+  })();
+  const perWeek = Math.round((withDate.length / spanWeeks) * 10) / 10;
+  const withFile = all.filter(
+    (a) => a.diagnosis || a.treatment || a.atcd || a.illness_history || a.physical_exam,
+  ).length;
+
   return (
     <div className="flex flex-col gap-3">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard icon={<CalendarCheck className="w-4 h-4" />} label="Total RDV" value={all.length} />
         <StatCard icon={<Clock className="w-4 h-4" />} label="À venir" value={upcoming.length} />
         <StatCard icon={<History className="w-4 h-4" />} label="Passés" value={past.length} />
@@ -1734,7 +1778,75 @@ function StatsDashboard() {
         <StatCard icon={<Calendar className="w-4 h-4" />} label="Ce mois" value={thisMonth.length} />
         <StatCard icon={<Users className="w-4 h-4" />} label="Patients" value={patients.length} />
         <StatCard icon={<UserCheck className="w-4 h-4" />} label="Récurrents" value={recurring} />
+        <StatCard icon={<TrendingUp className="w-4 h-4" />} label="Taux de retour %" value={returnRate} />
+        <StatCard icon={<Activity className="w-4 h-4" />} label="RDV / semaine" value={perWeek} />
+        <StatCard icon={<UserCheck className="w-4 h-4" />} label="Visites / patient" value={avgVisits} />
+        <StatCard
+          icon={<Clock className="w-4 h-4" />}
+          label="Heure de pointe"
+          value={peak ? `${peak.h}h` : "—"}
+        />
       </div>
+
+      <Panel title="Activité des 12 derniers mois" icon={<TrendingUp className="w-4 h-4" />}>
+        <div className="flex items-end justify-between gap-1 h-36">
+          {months.map((m, i) => (
+            <div key={i} className="flex-1 h-full flex flex-col items-center gap-1">
+              <span className="text-[10px] font-semibold text-muted-foreground">{m.count}</span>
+              <div className="flex-1 w-full flex items-end">
+                <div
+                  className="w-full rounded-t-lg"
+                  style={{
+                    height: `${Math.max(4, (m.count / maxMonth) * 100)}%`,
+                    backgroundImage: "var(--gradient-primary)",
+                  }}
+                />
+              </div>
+              <span className="text-[9px] font-semibold text-muted-foreground">{m.label}</span>
+            </div>
+          ))}
+        </div>
+      </Panel>
+
+      <Panel title="Sources d'acquisition" icon={<Share2 className="w-4 h-4" />}>
+        {sources.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Aucune source renseignée.</p>
+        ) : (
+          <div className="flex flex-col gap-2.5">
+            {sources.map((s) => (
+              <div key={s.key}>
+                <div className="flex justify-between text-xs font-semibold mb-1">
+                  <span>{s.emoji} {s.label}</span>
+                  <span className="text-muted-foreground">
+                    {s.count} · {Math.round((s.count / all.length) * 100)}%
+                  </span>
+                </div>
+                <div className="h-2.5 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full rounded-full"
+                    style={{ width: `${(s.count / maxSource) * 100}%`, backgroundImage: "var(--gradient-primary)" }}
+                  />
+                </div>
+              </div>
+            ))}
+            <p className="text-[11px] text-muted-foreground mt-1">{noSource} sans source</p>
+          </div>
+        )}
+      </Panel>
+
+      <Panel title="Dossiers cliniques remplis" icon={<Microscope className="w-4 h-4" />}>
+        <p className="text-sm">
+          <span className="font-bold text-primary">{withFile}</span> rendez-vous avec dossier clinique ·{" "}
+          <span className="font-bold text-muted-foreground">{all.length - withFile}</span> sans
+        </p>
+        <div className="h-2.5 rounded-full bg-muted overflow-hidden mt-2">
+          <div
+            className="h-full rounded-full"
+            style={{ width: `${(withFile / all.length) * 100}%`, backgroundImage: "var(--gradient-primary)" }}
+          />
+        </div>
+      </Panel>
+
 
       <Panel title="Répartition par type de visite" icon={<Tag className="w-4 h-4" />}>
         <div className="flex flex-col gap-2.5">
