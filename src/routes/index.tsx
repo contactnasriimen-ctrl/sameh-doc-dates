@@ -232,7 +232,8 @@ function PinGate({ onLogin }: { onLogin: (r: Role) => void }) {
   };
 
   return (
-    <div className={`flex flex-col gap-5 mt-10 ${shake ? "animate-shake" : ""}`}>
+    <div className={`w-full max-w-md mx-auto flex flex-col gap-5 mt-10 ${shake ? "animate-shake" : ""}`}>
+
       <div
         className="rounded-3xl p-6 text-white shadow-[var(--shadow-cute)] relative overflow-hidden"
         style={{ backgroundImage: "var(--gradient-primary)" }}
