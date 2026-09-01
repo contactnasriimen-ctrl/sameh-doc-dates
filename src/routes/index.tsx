@@ -489,22 +489,25 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
           )}
         </div>
       )}
-      <Field icon={<User className="w-4 h-4" />} label="Nom du patient">
-        <input
-          value={form.patient_name}
-          onChange={(e) => setForm({ ...form, patient_name: e.target.value })}
-          placeholder="Ex. Nour Ben Ali"
-          className="cute-input"
-        />
-      </Field>
-      <Field icon={<Phone className="w-4 h-4" />} label="Téléphone">
-        <input
-          value={form.phone}
-          onChange={(e) => setForm({ ...form, phone: e.target.value })}
-          placeholder="+216 ..."
-          className="cute-input"
-        />
-      </Field>
+      <div className="grid md:grid-cols-2 gap-3">
+        <Field icon={<User className="w-4 h-4" />} label="Nom du patient">
+          <input
+            value={form.patient_name}
+            onChange={(e) => setForm({ ...form, patient_name: e.target.value })}
+            placeholder="Ex. Nour Ben Ali"
+            className="cute-input"
+          />
+        </Field>
+        <Field icon={<Phone className="w-4 h-4" />} label="Téléphone">
+          <input
+            value={form.phone}
+            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            placeholder="+216 ..."
+            className="cute-input"
+          />
+        </Field>
+      </div>
+
       <div className="grid grid-cols-2 gap-3">
         <Field icon={<Calendar className="w-4 h-4" />} label="Date">
           <input
