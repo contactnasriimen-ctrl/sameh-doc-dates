@@ -8,6 +8,7 @@ import {
   FolderHeart, ArrowLeft, Search, Pill, AlertTriangle, ClipboardList, NotebookPen,
   Pencil, X, MessageCircleHeart, BarChart3, Users, CalendarCheck, Tag, UserCheck,
   MapPin, Share2, Activity, TrendingUp, Microscope, Filter, SlidersHorizontal,
+  Hash, Cake, ShieldCheck,
 } from "lucide-react";
 import {
   bookAppointment, listAppointments, deleteAppointment, updateAppointment,
@@ -22,7 +23,7 @@ const PIN_SECRETARY = "1234";
 const ROLE_KEY = "cabinet_role_v1";
 
 type Role = "doctor" | "secretary";
-type Tab = "book" | "history" | "records" | "stats" | "joy";
+type Tab = "book" | "history" | "stats" | "joy";
 
 export const VISIT_TYPES = [
   { key: "classique", label: "Consultation classique", short: "Classique", emoji: "🩺" },
@@ -45,8 +46,27 @@ export const REFERRAL_SOURCES = [
   { key: "famille", label: "Famille", emoji: "👨‍👩‍👧", detailLabel: "Lien de parenté / nom", placeholder: "Ex. sa sœur, patiente depuis 2024" },
   { key: "pharmacie", label: "Pharmacie", emoji: "💊", detailLabel: "Nom de la pharmacie", placeholder: "Ex. Pharmacie Centrale, Ariana" },
   { key: "passage", label: "Passage", emoji: "🚶", detailLabel: "Précision", placeholder: "Ex. a vu la plaque du cabinet" },
+  { key: "groupe_social", label: "Groupe social media", emoji: "🌐", detailLabel: "Nom du groupe (Facebook, WhatsApp...)", placeholder: "Ex. groupe Santé Naturelle Tunisie" },
+  { key: "rabta", label: "Rabta groupe", emoji: "🔗", detailLabel: "Précision sur le groupe Rabta", placeholder: "Ex. Rabta — groupe bien-être" },
   { key: "autre", label: "Autre", emoji: "✨", detailLabel: "Précisez la source", placeholder: "Ex. affiche, radio, événement..." },
 ] as const;
+
+export const SOCIAL_COVERAGE = ["CNAM", "Assurance privée", "Sans couverture", "Autre"] as const;
+
+// Code patient déterministe : initiales + empreinte stable du nom
+export function makePatientCode(name: string): string {
+  const clean = (name ?? "").trim();
+  if (!clean) return "";
+  const initials = clean
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("");
+  let h = 0;
+  const norm = clean.toLowerCase().replace(/\s+/g, " ");
+  for (let i = 0; i < norm.length; i++) h = (h * 31 + norm.charCodeAt(i)) % 100000;
+  return `P-${initials || "X"}${String(h).padStart(4, "0").slice(0, 4)}`;
+}
 
 const referralInfo = (k?: string | null) =>
   REFERRAL_SOURCES.find((r) => r.key === k);
@@ -196,9 +216,8 @@ function Home() {
           <>
             <Header role={role} onLogout={logout} />
             <Tabs tab={tab} setTab={setTab} role={role} />
-            {tab === "book" && <BookForm onBooked={() => setTab("history")} />}
+            {tab === "book" && <BookAndRecords role={role} onBooked={() => setTab("history")} />}
             {tab === "history" && <HistoryList role={role} />}
-            {tab === "records" && role === "doctor" && <PatientRecords />}
             {tab === "stats" && <StatsDashboard />}
             {tab === "joy" && role === "doctor" && <JoyChat />}
             <p className="text-center text-xs text-muted-foreground mt-2 flex items-center justify-center gap-1">
@@ -340,16 +359,11 @@ function Tabs({ tab, setTab, role }: { tab: Tab; setTab: (t: Tab) => void; role:
   return (
     <div className="flex gap-1.5 p-1.5 bg-white/60 backdrop-blur rounded-3xl border border-border overflow-x-auto">
       <button className={btn(tab === "book")} onClick={() => setTab("book")}>
-        <Plus className="w-4 h-4" /> Nouveau
+        <FolderHeart className="w-4 h-4" /> Fiches & Nouveau
       </button>
       <button className={btn(tab === "history")} onClick={() => setTab("history")}>
         <History className="w-4 h-4" /> RDV
       </button>
-      {role === "doctor" && (
-        <button className={btn(tab === "records")} onClick={() => setTab("records")}>
-          <FolderHeart className="w-4 h-4" /> Fiches
-        </button>
-      )}
       <button className={btn(tab === "stats")} onClick={() => setTab("stats")}>
         <BarChart3 className="w-4 h-4" /> Stats
       </button>
@@ -362,6 +376,145 @@ function Tabs({ tab, setTab, role }: { tab: Tab; setTab: (t: Tab) => void; role:
   );
 }
 
+function CoveragePicker({ value, onChange }: { value: string | null; onChange: (v: string | null) => void }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {SOCIAL_COVERAGE.map((c) => {
+        const active = value === c;
+        return (
+          <button
+            key={c}
+            type="button"
+            onClick={() => onChange(active ? null : c)}
+            className={`px-3 py-2 rounded-2xl text-xs font-semibold border transition-all active:scale-95 ${
+              active
+                ? "bg-primary text-primary-foreground border-primary shadow-[var(--shadow-cute)]"
+                : "bg-muted text-muted-foreground border-transparent hover:text-foreground"
+            }`}
+          >
+            {c}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+const norm = (v: string) =>
+  v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+// Recherche intelligente : accents ignorés, initiales, index alphabétique
+function smartMatch(name: string, code: string, q: string) {
+  const n = norm(name);
+  const query = norm(q);
+  if (!query) return true;
+  if (n.includes(query) || norm(code).includes(query)) return true;
+  const initials = n.split(/\s+/).map((w) => w[0] ?? "").join("");
+  if (initials.startsWith(query)) return true;
+  // toutes les lettres de la requête dans l'ordre (fuzzy)
+  let i = 0;
+  for (const ch of n) if (ch === query[i]) i++;
+  return i === query.length;
+}
+
+function PatientPicker({
+  patients, active, onPick,
+}: { patients: Appointment[]; active: string | null; onPick: (a: Appointment) => void }) {
+  const [q, setQ] = useState("");
+  const [letter, setLetter] = useState<string | null>(null);
+
+  const sorted = [...patients].sort((a, b) =>
+    (a.patient_name ?? "").localeCompare(b.patient_name ?? "", "fr"),
+  );
+  const letters = [...new Set(sorted.map((a) => norm(a.patient_name ?? "")[0]?.toUpperCase() ?? "#"))];
+  const results = sorted.filter((a) => {
+    const name = a.patient_name ?? "";
+    if (letter && norm(name)[0]?.toUpperCase() !== letter) return false;
+    return smartMatch(name, a.patient_code ?? "", q);
+  });
+  const show = q.trim() !== "" || letter !== null;
+
+  return (
+    <div className="bg-secondary/40 rounded-2xl p-3">
+      <p className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5 mb-2">
+        <UserCheck className="w-3.5 h-3.5" /> Patient déjà venu ? Cherchez son nom ou son code
+      </p>
+      <div className="relative">
+        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Nom, initiales ou code patient..."
+          className="cute-input pl-9"
+        />
+      </div>
+      <div className="flex flex-wrap gap-1 mt-2">
+        {letters.map((l) => (
+          <button
+            key={l}
+            type="button"
+            onClick={() => setLetter(letter === l ? null : l)}
+            className={`w-7 h-7 rounded-lg text-[11px] font-bold transition-colors ${
+              letter === l ? "bg-primary text-primary-foreground" : "bg-white text-foreground/70 hover:text-primary"
+            }`}
+          >
+            {l}
+          </button>
+        ))}
+      </div>
+      {show && (
+        <div className="mt-2 flex flex-col gap-1 max-h-56 overflow-y-auto">
+          {results.length === 0 ? (
+            <p className="text-[11px] text-muted-foreground py-2">Aucun patient trouvé.</p>
+          ) : (
+            results.map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => { onPick(a); setQ(""); setLetter(null); }}
+                className={`text-left px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 transition-colors ${
+                  active === a.patient_name ? "bg-primary text-primary-foreground" : "bg-white hover:text-primary"
+                }`}
+              >
+                <span className="truncate">{a.patient_name}</span>
+                <span className="font-mono text-[10px] opacity-70">
+                  {a.patient_code || makePatientCode(a.patient_name ?? "")}
+                </span>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+      {active && (
+        <p className="text-[11px] text-primary font-semibold mt-2">
+          Fiche récupérée : ajoutez juste la date et l'heure 🌿
+        </p>
+      )}
+    </div>
+  );
+}
+
+function BookAndRecords({ role, onBooked }: { role: Role; onBooked: () => void }) {
+  const [view, setView] = useState<"new" | "records">("new");
+  const seg = (active: boolean) =>
+    `flex-1 py-2.5 rounded-2xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+      active ? "bg-white text-primary shadow-[var(--shadow-cute)]" : "text-muted-foreground hover:text-foreground"
+    }`;
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex gap-1.5 p-1.5 bg-white/60 backdrop-blur rounded-3xl border border-border">
+        <button className={seg(view === "new")} onClick={() => setView("new")}>
+          <Plus className="w-4 h-4" /> Nouveau RDV
+        </button>
+        <button className={seg(view === "records")} onClick={() => setView("records")}>
+          <FolderHeart className="w-4 h-4" /> Fiches patients
+        </button>
+      </div>
+      {view === "new" ? <BookForm onBooked={onBooked} /> : <PatientRecords role={role} />}
+    </div>
+  );
+}
+
 function BookForm({ onBooked }: { onBooked: () => void }) {
   const qc = useQueryClient();
   const book = useServerFn(bookAppointment);
@@ -369,12 +522,16 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
   const [form, setForm] = useState({
     patient_name: "",
     phone: "",
+    phone2: "",
+    age: "",
+    origin: "",
     date: "",
     time: "",
-    reason: "",
   });
+  const [coverage, setCoverage] = useState<string | null>(null);
   const [types, setTypes] = useState<string[]>([]);
   const [known, setKnown] = useState<string | null>(null);
+  const [code, setCode] = useState<string>("");
   const [source, setSource] = useState<string | null>(null);
   const [sourceDetail, setSourceDetail] = useState("");
   const [clinical, setClinical] = useState<Record<string, string>>({});
@@ -399,8 +556,12 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
       ...f,
       patient_name: a.patient_name ?? "",
       phone: a.phone ?? "",
-      reason: a.reason ?? "",
+      phone2: a.phone2 ?? "",
+      age: a.age ?? "",
+      origin: a.origin ?? "",
     }));
+    setCoverage(a.social_coverage ?? null);
+    setCode(a.patient_code || makePatientCode(a.patient_name ?? ""));
     setTypes(a.visit_types ?? []);
     setSource(a.referral_source ?? null);
     setSourceDetail(a.referral_detail ?? "");
@@ -424,7 +585,9 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["appointments"] });
       toast.success("Rendez-vous enregistré ! 🌷");
-      setForm({ patient_name: "", phone: "", date: "", time: "", reason: "" });
+      setForm({ patient_name: "", phone: "", phone2: "", age: "", origin: "", date: "", time: "" });
+      setCoverage(null);
+      setCode("");
       setTypes([]);
       setSource(null);
       setSourceDetail("");
@@ -446,8 +609,12 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
     mutation.mutate({
       patient_name: form.patient_name || null,
       phone: form.phone || null,
+      phone2: form.phone2 || null,
+      age: form.age || null,
+      origin: form.origin || null,
+      social_coverage: coverage,
+      patient_code: code || makePatientCode(form.patient_name) || null,
       appointment_at: iso,
-      reason: form.reason || null,
       visit_types: types,
       referral_source: source,
       referral_detail: source ? sourceDetail || null : null,
@@ -462,32 +629,11 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
       <p className="text-xs text-muted-foreground -mb-1">Tous les champs sont optionnels ✨</p>
 
       {returning.length > 0 && (
-        <div className="bg-secondary/40 rounded-2xl p-3">
-          <p className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5 mb-2">
-            <UserCheck className="w-3.5 h-3.5" /> Patient déjà venu ? Touchez son nom
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {returning.map((a) => (
-              <button
-                key={a.id}
-                type="button"
-                onClick={() => prefill(a)}
-                className={`px-2.5 py-1.5 rounded-full text-[11px] font-semibold transition-all active:scale-95 ${
-                  known === a.patient_name
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-white text-foreground/80 hover:text-primary"
-                }`}
-              >
-                {a.patient_name}
-              </button>
-            ))}
-          </div>
-          {known && (
-            <p className="text-[11px] text-primary font-semibold mt-2">
-              Fiche récupérée : ajoutez juste la date et l'heure 🌿
-            </p>
-          )}
-        </div>
+        <PatientPicker
+          patients={returning}
+          active={known}
+          onPick={prefill}
+        />
       )}
       <div className="grid md:grid-cols-2 gap-3">
         <Field icon={<User className="w-4 h-4" />} label="Nom du patient">
@@ -505,6 +651,41 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
             placeholder="+216 ..."
             className="cute-input"
           />
+        </Field>
+        <Field icon={<Phone className="w-4 h-4" />} label="Deuxième numéro">
+          <input
+            value={form.phone2}
+            onChange={(e) => setForm({ ...form, phone2: e.target.value })}
+            placeholder="+216 ..."
+            className="cute-input"
+          />
+        </Field>
+        <Field icon={<Hash className="w-4 h-4" />} label="Code patient">
+          <input
+            value={code || makePatientCode(form.patient_name)}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="Généré automatiquement"
+            className="cute-input font-mono tracking-wide"
+          />
+        </Field>
+        <Field icon={<Cake className="w-4 h-4" />} label="Âge">
+          <input
+            value={form.age}
+            onChange={(e) => setForm({ ...form, age: e.target.value })}
+            placeholder="Ex. 34 ans"
+            className="cute-input"
+          />
+        </Field>
+        <Field icon={<MapPin className="w-4 h-4" />} label="Origine">
+          <input
+            value={form.origin}
+            onChange={(e) => setForm({ ...form, origin: e.target.value })}
+            placeholder="Ex. Ariana, Tunis"
+            className="cute-input"
+          />
+        </Field>
+        <Field icon={<ShieldCheck className="w-4 h-4" />} label="Couverture sociale">
+          <CoveragePicker value={coverage} onChange={setCoverage} />
         </Field>
       </div>
 
@@ -537,16 +718,6 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
           onDetail={setSourceDetail}
         />
       </Field>
-      <Field icon={<Sparkles className="w-4 h-4" />} label="Motif">
-        <textarea
-          value={form.reason}
-          onChange={(e) => setForm({ ...form, reason: e.target.value })}
-          placeholder="Consultation, contrôle..."
-          rows={3}
-          className="cute-input resize-none"
-        />
-      </Field>
-
       <div className="rounded-2xl border border-border overflow-hidden">
         <button
           type="button"
@@ -642,6 +813,11 @@ type Appointment = {
   physical_exam: string | null;
   complementary_exam: string | null;
   evolution: string | null;
+  age: string | null;
+  origin: string | null;
+  social_coverage: string | null;
+  phone2: string | null;
+  patient_code: string | null;
   created_at: string;
 };
 
@@ -679,15 +855,15 @@ function MonthCalendar({
   const todayKey = dayKey(new Date());
 
   return (
-    <div className="bg-card rounded-3xl border border-border shadow-sm p-4">
-      <div className="flex items-center justify-between mb-3">
+    <div className="bg-card rounded-3xl border border-border shadow-sm p-3 max-w-sm mx-auto w-full">
+      <div className="flex items-center justify-between mb-2">
         <button
           onClick={() => setCursor(new Date(year, month - 1, 1))}
           className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10"
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
-        <span className="font-bold capitalize">
+        <span className="text-sm font-bold capitalize">
           {cursor.toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}
         </span>
         <button
@@ -698,7 +874,7 @@ function MonthCalendar({
         </button>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 mb-1">
+      <div className="grid grid-cols-7 gap-0.5 mb-0.5">
         {["L", "M", "M", "J", "V", "S", "D"].map((d, i) => (
           <span key={i} className="text-[10px] font-semibold text-muted-foreground text-center py-1">
             {d}
@@ -706,7 +882,7 @@ function MonthCalendar({
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-0.5">
         {cells.map((d, i) => {
           if (!d) return <span key={`e${i}`} />;
           const k = dayKey(d);
@@ -716,7 +892,7 @@ function MonthCalendar({
             <button
               key={k}
               onClick={() => onSelect(isSel ? null : k)}
-              className={`aspect-square rounded-xl flex flex-col items-center justify-center text-sm transition-colors ${
+              className={`aspect-square rounded-lg flex flex-col items-center justify-center text-[11px] transition-colors ${
                 isSel
                   ? "bg-primary text-primary-foreground font-bold"
                   : n > 0
@@ -757,6 +933,13 @@ function HistoryList({ role }: { role: Role }) {
   const [fType, setFType] = useState<string | null>(null);
   const [fWhen, setFWhen] = useState<"all" | "upcoming" | "past">("all");
   const [showFilters, setShowFilters] = useState(false);
+
+  const askDelete = (a: Appointment) => {
+    const label = a.patient_name || "ce rendez-vous";
+    if (window.confirm(`Supprimer définitivement le rendez-vous de ${label} ?\nCette action est irréversible.`)) {
+      delMutation.mutate(a.id);
+    }
+  };
 
   const delMutation = useMutation({
     mutationFn: (id: string) => del({ data: { id } }),
@@ -801,7 +984,8 @@ function HistoryList({ role }: { role: Role }) {
     }
     if (!q) return true;
     const haystack = [
-      a.patient_name, a.phone, a.reason, a.address, a.atcd, a.illness_history,
+      a.patient_name, a.phone, a.phone2, a.patient_code, a.age, a.origin,
+      a.social_coverage, a.address, a.atcd, a.illness_history,
       a.physical_exam, a.complementary_exam, a.diagnosis, a.treatment,
       a.evolution, a.private_notes, a.referral_detail,
       referralLabel(a.referral_source),
@@ -826,7 +1010,7 @@ function HistoryList({ role }: { role: Role }) {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Rechercher (nom, tél, motif, diagnostic...)"
+            placeholder="Rechercher (nom, code, tél, diagnostic...)"
             className="cute-input pl-9"
           />
         </div>
@@ -919,7 +1103,7 @@ function HistoryList({ role }: { role: Role }) {
               key={a.id}
               appt={a}
               role={role}
-              onDelete={() => delMutation.mutate(a.id)}
+              onDelete={() => askDelete(a)}
               deleting={delMutation.isPending}
             />
           ))}
@@ -991,6 +1175,15 @@ function AppointmentCard({
             </a>
           )}
 
+          {appt.phone2 && (
+            <a
+              href={`tel:${appt.phone2.replace(/\s+/g, "")}`}
+              className="text-xs mt-1 ml-1.5 inline-flex items-center gap-1.5 bg-muted text-muted-foreground font-semibold rounded-full px-2.5 py-1 active:scale-95 transition-transform"
+            >
+              <Phone className="w-3 h-3" /> {appt.phone2}
+            </a>
+          )}
+
           <VisitTypeBadges types={appt.visit_types ?? []} />
 
           {appt.referral_source && (
@@ -1001,8 +1194,29 @@ function AppointmentCard({
             </p>
           )}
 
-          {appt.reason && (
-            <p className="text-sm mt-2 bg-muted rounded-xl px-3 py-2">{appt.reason}</p>
+          {(appt.patient_code || appt.age || appt.origin || appt.social_coverage) && (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {appt.patient_code && (
+                <span className="text-[10px] font-mono font-semibold bg-primary/10 text-primary rounded-full px-2 py-0.5">
+                  {appt.patient_code}
+                </span>
+              )}
+              {appt.age && (
+                <span className="text-[10px] font-semibold bg-muted text-muted-foreground rounded-full px-2 py-0.5">
+                  {appt.age}
+                </span>
+              )}
+              {appt.origin && (
+                <span className="text-[10px] font-semibold bg-muted text-muted-foreground rounded-full px-2 py-0.5">
+                  📍 {appt.origin}
+                </span>
+              )}
+              {appt.social_coverage && (
+                <span className="text-[10px] font-semibold bg-muted text-muted-foreground rounded-full px-2 py-0.5">
+                  🛡️ {appt.social_coverage}
+                </span>
+              )}
+            </div>
           )}
         </div>
         <div className="flex-shrink-0 flex flex-col gap-1">
@@ -1060,8 +1274,12 @@ function EditAppointment({ appt, onClose }: { appt: Appointment; onClose: () => 
       ? `${initialDt.getFullYear()}-${pad(initialDt.getMonth() + 1)}-${pad(initialDt.getDate())}`
       : "",
     time: initialDt ? `${pad(initialDt.getHours())}:${pad(initialDt.getMinutes())}` : "",
-    reason: appt.reason ?? "",
+    phone2: appt.phone2 ?? "",
+    age: appt.age ?? "",
+    origin: appt.origin ?? "",
+    patient_code: appt.patient_code ?? "",
   });
+  const [coverage, setCoverage] = useState<string | null>(appt.social_coverage ?? null);
   const [types, setTypes] = useState<string[]>(appt.visit_types ?? []);
   const [source, setSource] = useState<string | null>(appt.referral_source ?? null);
   const [sourceDetail, setSourceDetail] = useState(appt.referral_detail ?? "");
@@ -1077,7 +1295,11 @@ function EditAppointment({ appt, onClose }: { appt: Appointment; onClose: () => 
           patient_name: form.patient_name || null,
           phone: form.phone || null,
           appointment_at: iso,
-          reason: form.reason || null,
+          phone2: form.phone2 || null,
+          age: form.age || null,
+          origin: form.origin || null,
+          social_coverage: coverage,
+          patient_code: form.patient_code || makePatientCode(form.patient_name) || null,
           diagnosis: appt.diagnosis,
           treatment: appt.treatment,
           medical_history: appt.medical_history,
@@ -1112,12 +1334,45 @@ function EditAppointment({ appt, onClose }: { appt: Appointment; onClose: () => 
           className="cute-input"
         />
       </Field>
-      <Field icon={<Phone className="w-4 h-4" />} label="Téléphone">
-        <input
-          value={form.phone}
-          onChange={(e) => setForm({ ...form, phone: e.target.value })}
-          className="cute-input"
-        />
+      <div className="grid grid-cols-2 gap-3">
+        <Field icon={<Phone className="w-4 h-4" />} label="Téléphone">
+          <input
+            value={form.phone}
+            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            className="cute-input"
+          />
+        </Field>
+        <Field icon={<Phone className="w-4 h-4" />} label="Deuxième numéro">
+          <input
+            value={form.phone2}
+            onChange={(e) => setForm({ ...form, phone2: e.target.value })}
+            className="cute-input"
+          />
+        </Field>
+        <Field icon={<Hash className="w-4 h-4" />} label="Code patient">
+          <input
+            value={form.patient_code || makePatientCode(form.patient_name)}
+            onChange={(e) => setForm({ ...form, patient_code: e.target.value })}
+            className="cute-input font-mono"
+          />
+        </Field>
+        <Field icon={<Cake className="w-4 h-4" />} label="Âge">
+          <input
+            value={form.age}
+            onChange={(e) => setForm({ ...form, age: e.target.value })}
+            className="cute-input"
+          />
+        </Field>
+        <Field icon={<MapPin className="w-4 h-4" />} label="Origine">
+          <input
+            value={form.origin}
+            onChange={(e) => setForm({ ...form, origin: e.target.value })}
+            className="cute-input"
+          />
+        </Field>
+      </div>
+      <Field icon={<ShieldCheck className="w-4 h-4" />} label="Couverture sociale">
+        <CoveragePicker value={coverage} onChange={setCoverage} />
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field icon={<Calendar className="w-4 h-4" />} label="Date">
@@ -1146,14 +1401,6 @@ function EditAppointment({ appt, onClose }: { appt: Appointment; onClose: () => 
           detail={sourceDetail}
           onChange={setSource}
           onDetail={setSourceDetail}
-        />
-      </Field>
-      <Field icon={<Sparkles className="w-4 h-4" />} label="Motif">
-        <textarea
-          value={form.reason}
-          onChange={(e) => setForm({ ...form, reason: e.target.value })}
-          rows={2}
-          className="cute-input resize-none"
         />
       </Field>
       <button
@@ -1211,7 +1458,11 @@ function MedicalFile({ appt }: { appt: Appointment }) {
           patient_name: appt.patient_name,
           phone: appt.phone,
           appointment_at: appt.appointment_at,
-          reason: appt.reason,
+          phone2: appt.phone2,
+          age: appt.age,
+          origin: appt.origin,
+          social_coverage: appt.social_coverage,
+          patient_code: appt.patient_code,
           visit_types: appt.visit_types ?? [],
           referral_source: appt.referral_source,
           referral_detail: appt.referral_detail,
@@ -1266,6 +1517,7 @@ function MedicalFile({ appt }: { appt: Appointment }) {
 
 type PatientGroup = {
   name: string;
+  code: string;
   appointments: Appointment[];
   lastVisit: Date | null;
 };
@@ -1283,7 +1535,9 @@ function groupByPatient(appts: Appointment[]): PatientGroup[] {
         .map((a) => (a.appointment_at ? new Date(a.appointment_at).getTime() : 0))
         .filter((n) => n > 0);
       const lastVisit = dates.length ? new Date(Math.max(...dates)) : null;
-      return { name, appointments: list, lastVisit };
+      const code =
+        list.find((a) => a.patient_code)?.patient_code ?? makePatientCode(name);
+      return { name, code, appointments: list, lastVisit };
     })
     .sort((a, b) => {
       const at = a.lastVisit?.getTime() ?? 0;
@@ -1292,22 +1546,21 @@ function groupByPatient(appts: Appointment[]): PatientGroup[] {
     });
 }
 
-function PatientRecords() {
+function PatientRecords({ role }: { role: Role }) {
   const { data, isLoading } = useQuery(appointmentsQO());
   const [selected, setSelected] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [fSource, setFSource] = useState<string | null>(null);
-  const [fType, setFType] = useState<string | null>(null);
-  const [fWhen, setFWhen] = useState<"all" | "upcoming" | "past">("all");
-  const [showFilters, setShowFilters] = useState(false);
+  const [letter, setLetter] = useState<string | null>(null);
 
   if (isLoading) {
     return <div className="bg-card rounded-3xl p-8 text-center text-muted-foreground">Chargement...</div>;
   }
   const groups = groupByPatient((data ?? []) as Appointment[]);
-  const filtered = search
-    ? groups.filter((g) => g.name.toLowerCase().includes(search.toLowerCase()))
-    : groups;
+  const letters = [...new Set(groups.map((g) => norm(g.name)[0]?.toUpperCase() ?? "#"))].sort();
+  const filtered = groups
+    .filter((g) => (letter ? norm(g.name)[0]?.toUpperCase() === letter : true))
+    .filter((g) => smartMatch(g.name, g.code, search))
+    .sort((a, b) => a.name.localeCompare(b.name, "fr"));
 
   if (selected) {
     const group = groups.find((g) => g.name === selected);
@@ -1326,9 +1579,32 @@ function PatientRecords() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Rechercher un patient..."
+            placeholder="Rechercher un patient (nom, initiales, code)..."
             className="cute-input pl-9"
           />
+        </div>
+        <div className="flex flex-wrap gap-1 mt-3">
+          {letters.map((l) => (
+            <button
+              key={l}
+              type="button"
+              onClick={() => setLetter(letter === l ? null : l)}
+              className={`w-7 h-7 rounded-lg text-[11px] font-bold transition-colors ${
+                letter === l ? "bg-primary text-primary-foreground" : "bg-muted text-foreground/70 hover:text-primary"
+              }`}
+            >
+              {l}
+            </button>
+          ))}
+          {letter && (
+            <button
+              type="button"
+              onClick={() => setLetter(null)}
+              className="px-2 h-7 rounded-lg text-[11px] font-bold text-muted-foreground underline"
+            >
+              Tout
+            </button>
+          )}
         </div>
       </div>
 
@@ -1358,6 +1634,7 @@ function PatientRecords() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold truncate">{g.name}</p>
+                <p className="text-[10px] font-mono font-semibold text-primary">{g.code}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {g.appointments.length} rendez-vous
                   {g.lastVisit && ` • dernier ${g.lastVisit.toLocaleDateString("fr-FR")}`}
@@ -1394,8 +1671,12 @@ function PatientDetail({ group, onBack }: { group: PatientGroup; onBack: () => v
       ? `${initialDt.getFullYear()}-${pad(initialDt.getMonth() + 1)}-${pad(initialDt.getDate())}`
       : "",
     time: initialDt ? `${pad(initialDt.getHours())}:${pad(initialDt.getMinutes())}` : "",
-    reason: master.reason ?? "",
+    phone2: master.phone2 ?? "",
+    age: master.age ?? "",
+    origin: master.origin ?? "",
+    patient_code: master.patient_code || group.code,
   });
+  const [coverage, setCoverage] = useState<string | null>(master.social_coverage ?? null);
   const [types, setTypes] = useState<string[]>(master.visit_types ?? []);
   const [source, setSource] = useState<string | null>(master.referral_source ?? null);
   const [sourceDetail, setSourceDetail] = useState(master.referral_detail ?? "");
@@ -1424,7 +1705,11 @@ function PatientDetail({ group, onBack }: { group: PatientGroup; onBack: () => v
           patient_name: form.patient_name || null,
           phone: form.phone || null,
           appointment_at: iso,
-          reason: form.reason || null,
+          phone2: form.phone2 || null,
+          age: form.age || null,
+          origin: form.origin || null,
+          social_coverage: coverage,
+          patient_code: form.patient_code || makePatientCode(form.patient_name) || null,
           visit_types: types,
           referral_source: source,
           referral_detail: source ? sourceDetail || null : null,
@@ -1469,6 +1754,7 @@ function PatientDetail({ group, onBack }: { group: PatientGroup; onBack: () => v
               <Lock className="w-3 h-3" /> Fiche confidentielle
             </p>
             <h2 className="text-xl font-bold leading-tight">{group.name}</h2>
+            <p className="text-[11px] font-mono opacity-90">{group.code}</p>
             {master.phone && (
               <a
                 href={`tel:${master.phone.replace(/\s/g, "")}`}
@@ -1517,6 +1803,37 @@ function PatientDetail({ group, onBack }: { group: PatientGroup; onBack: () => v
               className="cute-input"
             />
           </Field>
+          <Field icon={<Phone className="w-4 h-4" />} label="Deuxième numéro">
+            <input
+              value={form.phone2}
+              onChange={(e) => setForm({ ...form, phone2: e.target.value })}
+              className="cute-input"
+            />
+          </Field>
+          <Field icon={<Hash className="w-4 h-4" />} label="Code patient">
+            <input
+              value={form.patient_code}
+              onChange={(e) => setForm({ ...form, patient_code: e.target.value })}
+              className="cute-input font-mono"
+            />
+          </Field>
+          <Field icon={<Cake className="w-4 h-4" />} label="Âge">
+            <input
+              value={form.age}
+              onChange={(e) => setForm({ ...form, age: e.target.value })}
+              className="cute-input"
+            />
+          </Field>
+          <Field icon={<MapPin className="w-4 h-4" />} label="Origine">
+            <input
+              value={form.origin}
+              onChange={(e) => setForm({ ...form, origin: e.target.value })}
+              className="cute-input"
+            />
+          </Field>
+          <Field icon={<ShieldCheck className="w-4 h-4" />} label="Couverture sociale">
+            <CoveragePicker value={coverage} onChange={setCoverage} />
+          </Field>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <Field icon={<Calendar className="w-4 h-4" />} label="Date">
@@ -1545,14 +1862,6 @@ function PatientDetail({ group, onBack }: { group: PatientGroup; onBack: () => v
             detail={sourceDetail}
             onChange={setSource}
             onDetail={setSourceDetail}
-          />
-        </Field>
-        <Field icon={<Sparkles className="w-4 h-4" />} label="Motif">
-          <textarea
-            value={form.reason}
-            onChange={(e) => setForm({ ...form, reason: e.target.value })}
-            rows={2}
-            className="cute-input resize-none"
           />
         </Field>
 
@@ -1636,9 +1945,7 @@ function PatientDetail({ group, onBack }: { group: PatientGroup; onBack: () => v
                           })
                         : "Date non renseignée"}
                     </p>
-                    {a.reason && (
-                      <p className="text-xs text-muted-foreground mt-0.5">{a.reason}</p>
-                    )}
+
                     <VisitTypeBadges types={a.visit_types ?? []} />
                   </div>
                   {a.id === master.id && (
