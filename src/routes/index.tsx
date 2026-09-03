@@ -1274,8 +1274,12 @@ function EditAppointment({ appt, onClose }: { appt: Appointment; onClose: () => 
       ? `${initialDt.getFullYear()}-${pad(initialDt.getMonth() + 1)}-${pad(initialDt.getDate())}`
       : "",
     time: initialDt ? `${pad(initialDt.getHours())}:${pad(initialDt.getMinutes())}` : "",
-    reason: appt.reason ?? "",
+    phone2: appt.phone2 ?? "",
+    age: appt.age ?? "",
+    origin: appt.origin ?? "",
+    patient_code: appt.patient_code ?? "",
   });
+  const [coverage, setCoverage] = useState<string | null>(appt.social_coverage ?? null);
   const [types, setTypes] = useState<string[]>(appt.visit_types ?? []);
   const [source, setSource] = useState<string | null>(appt.referral_source ?? null);
   const [sourceDetail, setSourceDetail] = useState(appt.referral_detail ?? "");
@@ -1291,7 +1295,11 @@ function EditAppointment({ appt, onClose }: { appt: Appointment; onClose: () => 
           patient_name: form.patient_name || null,
           phone: form.phone || null,
           appointment_at: iso,
-          reason: form.reason || null,
+          phone2: form.phone2 || null,
+          age: form.age || null,
+          origin: form.origin || null,
+          social_coverage: coverage,
+          patient_code: form.patient_code || makePatientCode(form.patient_name) || null,
           diagnosis: appt.diagnosis,
           treatment: appt.treatment,
           medical_history: appt.medical_history,
@@ -1326,12 +1334,45 @@ function EditAppointment({ appt, onClose }: { appt: Appointment; onClose: () => 
           className="cute-input"
         />
       </Field>
-      <Field icon={<Phone className="w-4 h-4" />} label="Téléphone">
-        <input
-          value={form.phone}
-          onChange={(e) => setForm({ ...form, phone: e.target.value })}
-          className="cute-input"
-        />
+      <div className="grid grid-cols-2 gap-3">
+        <Field icon={<Phone className="w-4 h-4" />} label="Téléphone">
+          <input
+            value={form.phone}
+            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            className="cute-input"
+          />
+        </Field>
+        <Field icon={<Phone className="w-4 h-4" />} label="Deuxième numéro">
+          <input
+            value={form.phone2}
+            onChange={(e) => setForm({ ...form, phone2: e.target.value })}
+            className="cute-input"
+          />
+        </Field>
+        <Field icon={<Hash className="w-4 h-4" />} label="Code patient">
+          <input
+            value={form.patient_code || makePatientCode(form.patient_name)}
+            onChange={(e) => setForm({ ...form, patient_code: e.target.value })}
+            className="cute-input font-mono"
+          />
+        </Field>
+        <Field icon={<Cake className="w-4 h-4" />} label="Âge">
+          <input
+            value={form.age}
+            onChange={(e) => setForm({ ...form, age: e.target.value })}
+            className="cute-input"
+          />
+        </Field>
+        <Field icon={<MapPin className="w-4 h-4" />} label="Origine">
+          <input
+            value={form.origin}
+            onChange={(e) => setForm({ ...form, origin: e.target.value })}
+            className="cute-input"
+          />
+        </Field>
+      </div>
+      <Field icon={<ShieldCheck className="w-4 h-4" />} label="Couverture sociale">
+        <CoveragePicker value={coverage} onChange={setCoverage} />
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field icon={<Calendar className="w-4 h-4" />} label="Date">
@@ -1360,14 +1401,6 @@ function EditAppointment({ appt, onClose }: { appt: Appointment; onClose: () => 
           detail={sourceDetail}
           onChange={setSource}
           onDetail={setSourceDetail}
-        />
-      </Field>
-      <Field icon={<Sparkles className="w-4 h-4" />} label="Motif">
-        <textarea
-          value={form.reason}
-          onChange={(e) => setForm({ ...form, reason: e.target.value })}
-          rows={2}
-          className="cute-input resize-none"
         />
       </Field>
       <button
@@ -1425,7 +1458,11 @@ function MedicalFile({ appt }: { appt: Appointment }) {
           patient_name: appt.patient_name,
           phone: appt.phone,
           appointment_at: appt.appointment_at,
-          reason: appt.reason,
+          phone2: appt.phone2,
+          age: appt.age,
+          origin: appt.origin,
+          social_coverage: appt.social_coverage,
+          patient_code: appt.patient_code,
           visit_types: appt.visit_types ?? [],
           referral_source: appt.referral_source,
           referral_detail: appt.referral_detail,
@@ -1480,6 +1517,7 @@ function MedicalFile({ appt }: { appt: Appointment }) {
 
 type PatientGroup = {
   name: string;
+  code: string;
   appointments: Appointment[];
   lastVisit: Date | null;
 };
@@ -1497,7 +1535,9 @@ function groupByPatient(appts: Appointment[]): PatientGroup[] {
         .map((a) => (a.appointment_at ? new Date(a.appointment_at).getTime() : 0))
         .filter((n) => n > 0);
       const lastVisit = dates.length ? new Date(Math.max(...dates)) : null;
-      return { name, appointments: list, lastVisit };
+      const code =
+        list.find((a) => a.patient_code)?.patient_code ?? makePatientCode(name);
+      return { name, code, appointments: list, lastVisit };
     })
     .sort((a, b) => {
       const at = a.lastVisit?.getTime() ?? 0;
@@ -1506,22 +1546,21 @@ function groupByPatient(appts: Appointment[]): PatientGroup[] {
     });
 }
 
-function PatientRecords() {
+function PatientRecords({ role }: { role: Role }) {
   const { data, isLoading } = useQuery(appointmentsQO());
   const [selected, setSelected] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [fSource, setFSource] = useState<string | null>(null);
-  const [fType, setFType] = useState<string | null>(null);
-  const [fWhen, setFWhen] = useState<"all" | "upcoming" | "past">("all");
-  const [showFilters, setShowFilters] = useState(false);
+  const [letter, setLetter] = useState<string | null>(null);
 
   if (isLoading) {
     return <div className="bg-card rounded-3xl p-8 text-center text-muted-foreground">Chargement...</div>;
   }
   const groups = groupByPatient((data ?? []) as Appointment[]);
-  const filtered = search
-    ? groups.filter((g) => g.name.toLowerCase().includes(search.toLowerCase()))
-    : groups;
+  const letters = [...new Set(groups.map((g) => norm(g.name)[0]?.toUpperCase() ?? "#"))].sort();
+  const filtered = groups
+    .filter((g) => (letter ? norm(g.name)[0]?.toUpperCase() === letter : true))
+    .filter((g) => smartMatch(g.name, g.code, search))
+    .sort((a, b) => a.name.localeCompare(b.name, "fr"));
 
   if (selected) {
     const group = groups.find((g) => g.name === selected);
@@ -1540,9 +1579,32 @@ function PatientRecords() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Rechercher un patient..."
+            placeholder="Rechercher un patient (nom, initiales, code)..."
             className="cute-input pl-9"
           />
+        </div>
+        <div className="flex flex-wrap gap-1 mt-3">
+          {letters.map((l) => (
+            <button
+              key={l}
+              type="button"
+              onClick={() => setLetter(letter === l ? null : l)}
+              className={`w-7 h-7 rounded-lg text-[11px] font-bold transition-colors ${
+                letter === l ? "bg-primary text-primary-foreground" : "bg-muted text-foreground/70 hover:text-primary"
+              }`}
+            >
+              {l}
+            </button>
+          ))}
+          {letter && (
+            <button
+              type="button"
+              onClick={() => setLetter(null)}
+              className="px-2 h-7 rounded-lg text-[11px] font-bold text-muted-foreground underline"
+            >
+              Tout
+            </button>
+          )}
         </div>
       </div>
 
@@ -1572,6 +1634,7 @@ function PatientRecords() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold truncate">{g.name}</p>
+                <p className="text-[10px] font-mono font-semibold text-primary">{g.code}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {g.appointments.length} rendez-vous
                   {g.lastVisit && ` • dernier ${g.lastVisit.toLocaleDateString("fr-FR")}`}
@@ -1608,8 +1671,12 @@ function PatientDetail({ group, onBack }: { group: PatientGroup; onBack: () => v
       ? `${initialDt.getFullYear()}-${pad(initialDt.getMonth() + 1)}-${pad(initialDt.getDate())}`
       : "",
     time: initialDt ? `${pad(initialDt.getHours())}:${pad(initialDt.getMinutes())}` : "",
-    reason: master.reason ?? "",
+    phone2: master.phone2 ?? "",
+    age: master.age ?? "",
+    origin: master.origin ?? "",
+    patient_code: master.patient_code || group.code,
   });
+  const [coverage, setCoverage] = useState<string | null>(master.social_coverage ?? null);
   const [types, setTypes] = useState<string[]>(master.visit_types ?? []);
   const [source, setSource] = useState<string | null>(master.referral_source ?? null);
   const [sourceDetail, setSourceDetail] = useState(master.referral_detail ?? "");
@@ -1638,7 +1705,11 @@ function PatientDetail({ group, onBack }: { group: PatientGroup; onBack: () => v
           patient_name: form.patient_name || null,
           phone: form.phone || null,
           appointment_at: iso,
-          reason: form.reason || null,
+          phone2: form.phone2 || null,
+          age: form.age || null,
+          origin: form.origin || null,
+          social_coverage: coverage,
+          patient_code: form.patient_code || makePatientCode(form.patient_name) || null,
           visit_types: types,
           referral_source: source,
           referral_detail: source ? sourceDetail || null : null,
@@ -1683,6 +1754,7 @@ function PatientDetail({ group, onBack }: { group: PatientGroup; onBack: () => v
               <Lock className="w-3 h-3" /> Fiche confidentielle
             </p>
             <h2 className="text-xl font-bold leading-tight">{group.name}</h2>
+            <p className="text-[11px] font-mono opacity-90">{group.code}</p>
             {master.phone && (
               <a
                 href={`tel:${master.phone.replace(/\s/g, "")}`}
@@ -1731,6 +1803,37 @@ function PatientDetail({ group, onBack }: { group: PatientGroup; onBack: () => v
               className="cute-input"
             />
           </Field>
+          <Field icon={<Phone className="w-4 h-4" />} label="Deuxième numéro">
+            <input
+              value={form.phone2}
+              onChange={(e) => setForm({ ...form, phone2: e.target.value })}
+              className="cute-input"
+            />
+          </Field>
+          <Field icon={<Hash className="w-4 h-4" />} label="Code patient">
+            <input
+              value={form.patient_code}
+              onChange={(e) => setForm({ ...form, patient_code: e.target.value })}
+              className="cute-input font-mono"
+            />
+          </Field>
+          <Field icon={<Cake className="w-4 h-4" />} label="Âge">
+            <input
+              value={form.age}
+              onChange={(e) => setForm({ ...form, age: e.target.value })}
+              className="cute-input"
+            />
+          </Field>
+          <Field icon={<MapPin className="w-4 h-4" />} label="Origine">
+            <input
+              value={form.origin}
+              onChange={(e) => setForm({ ...form, origin: e.target.value })}
+              className="cute-input"
+            />
+          </Field>
+          <Field icon={<ShieldCheck className="w-4 h-4" />} label="Couverture sociale">
+            <CoveragePicker value={coverage} onChange={setCoverage} />
+          </Field>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <Field icon={<Calendar className="w-4 h-4" />} label="Date">
@@ -1759,14 +1862,6 @@ function PatientDetail({ group, onBack }: { group: PatientGroup; onBack: () => v
             detail={sourceDetail}
             onChange={setSource}
             onDetail={setSourceDetail}
-          />
-        </Field>
-        <Field icon={<Sparkles className="w-4 h-4" />} label="Motif">
-          <textarea
-            value={form.reason}
-            onChange={(e) => setForm({ ...form, reason: e.target.value })}
-            rows={2}
-            className="cute-input resize-none"
           />
         </Field>
 
@@ -1850,9 +1945,7 @@ function PatientDetail({ group, onBack }: { group: PatientGroup; onBack: () => v
                           })
                         : "Date non renseignée"}
                     </p>
-                    {a.reason && (
-                      <p className="text-xs text-muted-foreground mt-0.5">{a.reason}</p>
-                    )}
+
                     <VisitTypeBadges types={a.visit_types ?? []} />
                   </div>
                   {a.id === master.id && (
