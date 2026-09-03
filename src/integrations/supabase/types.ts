@@ -17,6 +17,7 @@ export type Database = {
       appointments: {
         Row: {
           address: string | null
+          age: string | null
           allergies: string | null
           appointment_at: string | null
           atcd: string | null
@@ -27,18 +28,23 @@ export type Database = {
           id: string
           illness_history: string | null
           medical_history: string | null
+          origin: string | null
+          patient_code: string | null
           patient_name: string | null
           phone: string | null
+          phone2: string | null
           physical_exam: string | null
           private_notes: string | null
           reason: string | null
           referral_detail: string | null
           referral_source: string | null
+          social_coverage: string | null
           treatment: string | null
           visit_types: string[]
         }
         Insert: {
           address?: string | null
+          age?: string | null
           allergies?: string | null
           appointment_at?: string | null
           atcd?: string | null
@@ -49,18 +55,23 @@ export type Database = {
           id?: string
           illness_history?: string | null
           medical_history?: string | null
+          origin?: string | null
+          patient_code?: string | null
           patient_name?: string | null
           phone?: string | null
+          phone2?: string | null
           physical_exam?: string | null
           private_notes?: string | null
           reason?: string | null
           referral_detail?: string | null
           referral_source?: string | null
+          social_coverage?: string | null
           treatment?: string | null
           visit_types?: string[]
         }
         Update: {
           address?: string | null
+          age?: string | null
           allergies?: string | null
           appointment_at?: string | null
           atcd?: string | null
@@ -71,13 +82,17 @@ export type Database = {
           id?: string
           illness_history?: string | null
           medical_history?: string | null
+          origin?: string | null
+          patient_code?: string | null
           patient_name?: string | null
           phone?: string | null
+          phone2?: string | null
           physical_exam?: string | null
           private_notes?: string | null
           reason?: string | null
           referral_detail?: string | null
           referral_source?: string | null
+          social_coverage?: string | null
           treatment?: string | null
           visit_types?: string[]
         }
