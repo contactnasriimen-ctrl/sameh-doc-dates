@@ -376,6 +376,145 @@ function Tabs({ tab, setTab, role }: { tab: Tab; setTab: (t: Tab) => void; role:
   );
 }
 
+function CoveragePicker({ value, onChange }: { value: string | null; onChange: (v: string | null) => void }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {SOCIAL_COVERAGE.map((c) => {
+        const active = value === c;
+        return (
+          <button
+            key={c}
+            type="button"
+            onClick={() => onChange(active ? null : c)}
+            className={`px-3 py-2 rounded-2xl text-xs font-semibold border transition-all active:scale-95 ${
+              active
+                ? "bg-primary text-primary-foreground border-primary shadow-[var(--shadow-cute)]"
+                : "bg-muted text-muted-foreground border-transparent hover:text-foreground"
+            }`}
+          >
+            {c}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+const norm = (v: string) =>
+  v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+// Recherche intelligente : accents ignorés, initiales, index alphabétique
+function smartMatch(name: string, code: string, q: string) {
+  const n = norm(name);
+  const query = norm(q);
+  if (!query) return true;
+  if (n.includes(query) || norm(code).includes(query)) return true;
+  const initials = n.split(/\s+/).map((w) => w[0] ?? "").join("");
+  if (initials.startsWith(query)) return true;
+  // toutes les lettres de la requête dans l'ordre (fuzzy)
+  let i = 0;
+  for (const ch of n) if (ch === query[i]) i++;
+  return i === query.length;
+}
+
+function PatientPicker({
+  patients, active, onPick,
+}: { patients: Appointment[]; active: string | null; onPick: (a: Appointment) => void }) {
+  const [q, setQ] = useState("");
+  const [letter, setLetter] = useState<string | null>(null);
+
+  const sorted = [...patients].sort((a, b) =>
+    (a.patient_name ?? "").localeCompare(b.patient_name ?? "", "fr"),
+  );
+  const letters = [...new Set(sorted.map((a) => norm(a.patient_name ?? "")[0]?.toUpperCase() ?? "#"))];
+  const results = sorted.filter((a) => {
+    const name = a.patient_name ?? "";
+    if (letter && norm(name)[0]?.toUpperCase() !== letter) return false;
+    return smartMatch(name, a.patient_code ?? "", q);
+  });
+  const show = q.trim() !== "" || letter !== null;
+
+  return (
+    <div className="bg-secondary/40 rounded-2xl p-3">
+      <p className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5 mb-2">
+        <UserCheck className="w-3.5 h-3.5" /> Patient déjà venu ? Cherchez son nom ou son code
+      </p>
+      <div className="relative">
+        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Nom, initiales ou code patient..."
+          className="cute-input pl-9"
+        />
+      </div>
+      <div className="flex flex-wrap gap-1 mt-2">
+        {letters.map((l) => (
+          <button
+            key={l}
+            type="button"
+            onClick={() => setLetter(letter === l ? null : l)}
+            className={`w-7 h-7 rounded-lg text-[11px] font-bold transition-colors ${
+              letter === l ? "bg-primary text-primary-foreground" : "bg-white text-foreground/70 hover:text-primary"
+            }`}
+          >
+            {l}
+          </button>
+        ))}
+      </div>
+      {show && (
+        <div className="mt-2 flex flex-col gap-1 max-h-56 overflow-y-auto">
+          {results.length === 0 ? (
+            <p className="text-[11px] text-muted-foreground py-2">Aucun patient trouvé.</p>
+          ) : (
+            results.map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => { onPick(a); setQ(""); setLetter(null); }}
+                className={`text-left px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 transition-colors ${
+                  active === a.patient_name ? "bg-primary text-primary-foreground" : "bg-white hover:text-primary"
+                }`}
+              >
+                <span className="truncate">{a.patient_name}</span>
+                <span className="font-mono text-[10px] opacity-70">
+                  {a.patient_code || makePatientCode(a.patient_name ?? "")}
+                </span>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+      {active && (
+        <p className="text-[11px] text-primary font-semibold mt-2">
+          Fiche récupérée : ajoutez juste la date et l'heure 🌿
+        </p>
+      )}
+    </div>
+  );
+}
+
+function BookAndRecords({ role, onBooked }: { role: Role; onBooked: () => void }) {
+  const [view, setView] = useState<"new" | "records">("new");
+  const seg = (active: boolean) =>
+    `flex-1 py-2.5 rounded-2xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+      active ? "bg-white text-primary shadow-[var(--shadow-cute)]" : "text-muted-foreground hover:text-foreground"
+    }`;
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex gap-1.5 p-1.5 bg-white/60 backdrop-blur rounded-3xl border border-border">
+        <button className={seg(view === "new")} onClick={() => setView("new")}>
+          <Plus className="w-4 h-4" /> Nouveau RDV
+        </button>
+        <button className={seg(view === "records")} onClick={() => setView("records")}>
+          <FolderHeart className="w-4 h-4" /> Fiches patients
+        </button>
+      </div>
+      {view === "new" ? <BookForm onBooked={onBooked} /> : <PatientRecords role={role} />}
+    </div>
+  );
+}
+
 function BookForm({ onBooked }: { onBooked: () => void }) {
   const qc = useQueryClient();
   const book = useServerFn(bookAppointment);
@@ -716,15 +855,15 @@ function MonthCalendar({
   const todayKey = dayKey(new Date());
 
   return (
-    <div className="bg-card rounded-3xl border border-border shadow-sm p-4">
-      <div className="flex items-center justify-between mb-3">
+    <div className="bg-card rounded-3xl border border-border shadow-sm p-3 max-w-sm mx-auto w-full">
+      <div className="flex items-center justify-between mb-2">
         <button
           onClick={() => setCursor(new Date(year, month - 1, 1))}
           className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10"
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
-        <span className="font-bold capitalize">
+        <span className="text-sm font-bold capitalize">
           {cursor.toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}
         </span>
         <button
@@ -735,7 +874,7 @@ function MonthCalendar({
         </button>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 mb-1">
+      <div className="grid grid-cols-7 gap-0.5 mb-0.5">
         {["L", "M", "M", "J", "V", "S", "D"].map((d, i) => (
           <span key={i} className="text-[10px] font-semibold text-muted-foreground text-center py-1">
             {d}
@@ -743,7 +882,7 @@ function MonthCalendar({
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-0.5">
         {cells.map((d, i) => {
           if (!d) return <span key={`e${i}`} />;
           const k = dayKey(d);
@@ -753,7 +892,7 @@ function MonthCalendar({
             <button
               key={k}
               onClick={() => onSelect(isSel ? null : k)}
-              className={`aspect-square rounded-xl flex flex-col items-center justify-center text-sm transition-colors ${
+              className={`aspect-square rounded-lg flex flex-col items-center justify-center text-[11px] transition-colors ${
                 isSel
                   ? "bg-primary text-primary-foreground font-bold"
                   : n > 0
@@ -794,6 +933,13 @@ function HistoryList({ role }: { role: Role }) {
   const [fType, setFType] = useState<string | null>(null);
   const [fWhen, setFWhen] = useState<"all" | "upcoming" | "past">("all");
   const [showFilters, setShowFilters] = useState(false);
+
+  const askDelete = (a: Appointment) => {
+    const label = a.patient_name || "ce rendez-vous";
+    if (window.confirm(`Supprimer définitivement le rendez-vous de ${label} ?\nCette action est irréversible.`)) {
+      delMutation.mutate(a.id);
+    }
+  };
 
   const delMutation = useMutation({
     mutationFn: (id: string) => del({ data: { id } }),
@@ -838,7 +984,8 @@ function HistoryList({ role }: { role: Role }) {
     }
     if (!q) return true;
     const haystack = [
-      a.patient_name, a.phone, a.reason, a.address, a.atcd, a.illness_history,
+      a.patient_name, a.phone, a.phone2, a.patient_code, a.age, a.origin,
+      a.social_coverage, a.address, a.atcd, a.illness_history,
       a.physical_exam, a.complementary_exam, a.diagnosis, a.treatment,
       a.evolution, a.private_notes, a.referral_detail,
       referralLabel(a.referral_source),
@@ -863,7 +1010,7 @@ function HistoryList({ role }: { role: Role }) {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Rechercher (nom, tél, motif, diagnostic...)"
+            placeholder="Rechercher (nom, code, tél, diagnostic...)"
             className="cute-input pl-9"
           />
         </div>
@@ -956,7 +1103,7 @@ function HistoryList({ role }: { role: Role }) {
               key={a.id}
               appt={a}
               role={role}
-              onDelete={() => delMutation.mutate(a.id)}
+              onDelete={() => askDelete(a)}
               deleting={delMutation.isPending}
             />
           ))}
@@ -1028,6 +1175,15 @@ function AppointmentCard({
             </a>
           )}
 
+          {appt.phone2 && (
+            <a
+              href={`tel:${appt.phone2.replace(/\s+/g, "")}`}
+              className="text-xs mt-1 ml-1.5 inline-flex items-center gap-1.5 bg-muted text-muted-foreground font-semibold rounded-full px-2.5 py-1 active:scale-95 transition-transform"
+            >
+              <Phone className="w-3 h-3" /> {appt.phone2}
+            </a>
+          )}
+
           <VisitTypeBadges types={appt.visit_types ?? []} />
 
           {appt.referral_source && (
@@ -1038,8 +1194,29 @@ function AppointmentCard({
             </p>
           )}
 
-          {appt.reason && (
-            <p className="text-sm mt-2 bg-muted rounded-xl px-3 py-2">{appt.reason}</p>
+          {(appt.patient_code || appt.age || appt.origin || appt.social_coverage) && (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {appt.patient_code && (
+                <span className="text-[10px] font-mono font-semibold bg-primary/10 text-primary rounded-full px-2 py-0.5">
+                  {appt.patient_code}
+                </span>
+              )}
+              {appt.age && (
+                <span className="text-[10px] font-semibold bg-muted text-muted-foreground rounded-full px-2 py-0.5">
+                  {appt.age}
+                </span>
+              )}
+              {appt.origin && (
+                <span className="text-[10px] font-semibold bg-muted text-muted-foreground rounded-full px-2 py-0.5">
+                  📍 {appt.origin}
+                </span>
+              )}
+              {appt.social_coverage && (
+                <span className="text-[10px] font-semibold bg-muted text-muted-foreground rounded-full px-2 py-0.5">
+                  🛡️ {appt.social_coverage}
+                </span>
+              )}
+            </div>
           )}
         </div>
         <div className="flex-shrink-0 flex flex-col gap-1">
