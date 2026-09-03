@@ -8,6 +8,7 @@ import {
   FolderHeart, ArrowLeft, Search, Pill, AlertTriangle, ClipboardList, NotebookPen,
   Pencil, X, MessageCircleHeart, BarChart3, Users, CalendarCheck, Tag, UserCheck,
   MapPin, Share2, Activity, TrendingUp, Microscope, Filter, SlidersHorizontal,
+  Hash, Cake, ShieldCheck,
 } from "lucide-react";
 import {
   bookAppointment, listAppointments, deleteAppointment, updateAppointment,
@@ -22,7 +23,7 @@ const PIN_SECRETARY = "1234";
 const ROLE_KEY = "cabinet_role_v1";
 
 type Role = "doctor" | "secretary";
-type Tab = "book" | "history" | "records" | "stats" | "joy";
+type Tab = "book" | "history" | "stats" | "joy";
 
 export const VISIT_TYPES = [
   { key: "classique", label: "Consultation classique", short: "Classique", emoji: "🩺" },
@@ -45,8 +46,27 @@ export const REFERRAL_SOURCES = [
   { key: "famille", label: "Famille", emoji: "👨‍👩‍👧", detailLabel: "Lien de parenté / nom", placeholder: "Ex. sa sœur, patiente depuis 2024" },
   { key: "pharmacie", label: "Pharmacie", emoji: "💊", detailLabel: "Nom de la pharmacie", placeholder: "Ex. Pharmacie Centrale, Ariana" },
   { key: "passage", label: "Passage", emoji: "🚶", detailLabel: "Précision", placeholder: "Ex. a vu la plaque du cabinet" },
+  { key: "groupe_social", label: "Groupe social media", emoji: "🌐", detailLabel: "Nom du groupe (Facebook, WhatsApp...)", placeholder: "Ex. groupe Santé Naturelle Tunisie" },
+  { key: "rabta", label: "Rabta groupe", emoji: "🔗", detailLabel: "Précision sur le groupe Rabta", placeholder: "Ex. Rabta — groupe bien-être" },
   { key: "autre", label: "Autre", emoji: "✨", detailLabel: "Précisez la source", placeholder: "Ex. affiche, radio, événement..." },
 ] as const;
+
+export const SOCIAL_COVERAGE = ["CNAM", "Assurance privée", "Sans couverture", "Autre"] as const;
+
+// Code patient déterministe : initiales + empreinte stable du nom
+export function makePatientCode(name: string): string {
+  const clean = (name ?? "").trim();
+  if (!clean) return "";
+  const initials = clean
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("");
+  let h = 0;
+  const norm = clean.toLowerCase().replace(/\s+/g, " ");
+  for (let i = 0; i < norm.length; i++) h = (h * 31 + norm.charCodeAt(i)) % 100000;
+  return `P-${initials || "X"}${String(h).padStart(4, "0").slice(0, 4)}`;
+}
 
 const referralInfo = (k?: string | null) =>
   REFERRAL_SOURCES.find((r) => r.key === k);
@@ -196,9 +216,8 @@ function Home() {
           <>
             <Header role={role} onLogout={logout} />
             <Tabs tab={tab} setTab={setTab} role={role} />
-            {tab === "book" && <BookForm onBooked={() => setTab("history")} />}
+            {tab === "book" && <BookAndRecords role={role} onBooked={() => setTab("history")} />}
             {tab === "history" && <HistoryList role={role} />}
-            {tab === "records" && role === "doctor" && <PatientRecords />}
             {tab === "stats" && <StatsDashboard />}
             {tab === "joy" && role === "doctor" && <JoyChat />}
             <p className="text-center text-xs text-muted-foreground mt-2 flex items-center justify-center gap-1">
@@ -340,16 +359,11 @@ function Tabs({ tab, setTab, role }: { tab: Tab; setTab: (t: Tab) => void; role:
   return (
     <div className="flex gap-1.5 p-1.5 bg-white/60 backdrop-blur rounded-3xl border border-border overflow-x-auto">
       <button className={btn(tab === "book")} onClick={() => setTab("book")}>
-        <Plus className="w-4 h-4" /> Nouveau
+        <FolderHeart className="w-4 h-4" /> Fiches & Nouveau
       </button>
       <button className={btn(tab === "history")} onClick={() => setTab("history")}>
         <History className="w-4 h-4" /> RDV
       </button>
-      {role === "doctor" && (
-        <button className={btn(tab === "records")} onClick={() => setTab("records")}>
-          <FolderHeart className="w-4 h-4" /> Fiches
-        </button>
-      )}
       <button className={btn(tab === "stats")} onClick={() => setTab("stats")}>
         <BarChart3 className="w-4 h-4" /> Stats
       </button>
@@ -369,12 +383,16 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
   const [form, setForm] = useState({
     patient_name: "",
     phone: "",
+    phone2: "",
+    age: "",
+    origin: "",
     date: "",
     time: "",
-    reason: "",
   });
+  const [coverage, setCoverage] = useState<string | null>(null);
   const [types, setTypes] = useState<string[]>([]);
   const [known, setKnown] = useState<string | null>(null);
+  const [code, setCode] = useState<string>("");
   const [source, setSource] = useState<string | null>(null);
   const [sourceDetail, setSourceDetail] = useState("");
   const [clinical, setClinical] = useState<Record<string, string>>({});
@@ -399,8 +417,12 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
       ...f,
       patient_name: a.patient_name ?? "",
       phone: a.phone ?? "",
-      reason: a.reason ?? "",
+      phone2: a.phone2 ?? "",
+      age: a.age ?? "",
+      origin: a.origin ?? "",
     }));
+    setCoverage(a.social_coverage ?? null);
+    setCode(a.patient_code || makePatientCode(a.patient_name ?? ""));
     setTypes(a.visit_types ?? []);
     setSource(a.referral_source ?? null);
     setSourceDetail(a.referral_detail ?? "");
@@ -424,7 +446,9 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["appointments"] });
       toast.success("Rendez-vous enregistré ! 🌷");
-      setForm({ patient_name: "", phone: "", date: "", time: "", reason: "" });
+      setForm({ patient_name: "", phone: "", phone2: "", age: "", origin: "", date: "", time: "" });
+      setCoverage(null);
+      setCode("");
       setTypes([]);
       setSource(null);
       setSourceDetail("");
@@ -446,8 +470,12 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
     mutation.mutate({
       patient_name: form.patient_name || null,
       phone: form.phone || null,
+      phone2: form.phone2 || null,
+      age: form.age || null,
+      origin: form.origin || null,
+      social_coverage: coverage,
+      patient_code: code || makePatientCode(form.patient_name) || null,
       appointment_at: iso,
-      reason: form.reason || null,
       visit_types: types,
       referral_source: source,
       referral_detail: source ? sourceDetail || null : null,
@@ -462,32 +490,11 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
       <p className="text-xs text-muted-foreground -mb-1">Tous les champs sont optionnels ✨</p>
 
       {returning.length > 0 && (
-        <div className="bg-secondary/40 rounded-2xl p-3">
-          <p className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5 mb-2">
-            <UserCheck className="w-3.5 h-3.5" /> Patient déjà venu ? Touchez son nom
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {returning.map((a) => (
-              <button
-                key={a.id}
-                type="button"
-                onClick={() => prefill(a)}
-                className={`px-2.5 py-1.5 rounded-full text-[11px] font-semibold transition-all active:scale-95 ${
-                  known === a.patient_name
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-white text-foreground/80 hover:text-primary"
-                }`}
-              >
-                {a.patient_name}
-              </button>
-            ))}
-          </div>
-          {known && (
-            <p className="text-[11px] text-primary font-semibold mt-2">
-              Fiche récupérée : ajoutez juste la date et l'heure 🌿
-            </p>
-          )}
-        </div>
+        <PatientPicker
+          patients={returning}
+          active={known}
+          onPick={prefill}
+        />
       )}
       <div className="grid md:grid-cols-2 gap-3">
         <Field icon={<User className="w-4 h-4" />} label="Nom du patient">
@@ -505,6 +512,41 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
             placeholder="+216 ..."
             className="cute-input"
           />
+        </Field>
+        <Field icon={<Phone className="w-4 h-4" />} label="Deuxième numéro">
+          <input
+            value={form.phone2}
+            onChange={(e) => setForm({ ...form, phone2: e.target.value })}
+            placeholder="+216 ..."
+            className="cute-input"
+          />
+        </Field>
+        <Field icon={<Hash className="w-4 h-4" />} label="Code patient">
+          <input
+            value={code || makePatientCode(form.patient_name)}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="Généré automatiquement"
+            className="cute-input font-mono tracking-wide"
+          />
+        </Field>
+        <Field icon={<Cake className="w-4 h-4" />} label="Âge">
+          <input
+            value={form.age}
+            onChange={(e) => setForm({ ...form, age: e.target.value })}
+            placeholder="Ex. 34 ans"
+            className="cute-input"
+          />
+        </Field>
+        <Field icon={<MapPin className="w-4 h-4" />} label="Origine">
+          <input
+            value={form.origin}
+            onChange={(e) => setForm({ ...form, origin: e.target.value })}
+            placeholder="Ex. Ariana, Tunis"
+            className="cute-input"
+          />
+        </Field>
+        <Field icon={<ShieldCheck className="w-4 h-4" />} label="Couverture sociale">
+          <CoveragePicker value={coverage} onChange={setCoverage} />
         </Field>
       </div>
 
@@ -537,16 +579,6 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
           onDetail={setSourceDetail}
         />
       </Field>
-      <Field icon={<Sparkles className="w-4 h-4" />} label="Motif">
-        <textarea
-          value={form.reason}
-          onChange={(e) => setForm({ ...form, reason: e.target.value })}
-          placeholder="Consultation, contrôle..."
-          rows={3}
-          className="cute-input resize-none"
-        />
-      </Field>
-
       <div className="rounded-2xl border border-border overflow-hidden">
         <button
           type="button"
@@ -642,6 +674,11 @@ type Appointment = {
   physical_exam: string | null;
   complementary_exam: string | null;
   evolution: string | null;
+  age: string | null;
+  origin: string | null;
+  social_coverage: string | null;
+  phone2: string | null;
+  patient_code: string | null;
   created_at: string;
 };
 
