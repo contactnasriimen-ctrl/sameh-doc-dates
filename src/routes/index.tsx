@@ -20,6 +20,8 @@ import logoAsset from "@/assets/dr-sameh-logo.png.asset.json";
 // Change these PINs to your own
 const PIN_DOCTOR = "bruno silencio";
 const PIN_SECRETARY = "1234";
+const CODE2_DOCTOR = "7788";
+const CODE2_SECRETARY = "5566";
 const ROLE_KEY = "cabinet_role_v1";
 
 type Role = "doctor" | "secretary";
