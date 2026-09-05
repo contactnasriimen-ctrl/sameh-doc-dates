@@ -2235,7 +2235,7 @@ function StatsDashboard() {
   );
 }
 
-function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
+function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: number | string }) {
   return (
     <div className="bg-card rounded-2xl border border-border shadow-sm p-3.5">
       <span className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
