@@ -20,6 +20,8 @@ import logoAsset from "@/assets/dr-sameh-logo.png.asset.json";
 // Change these PINs to your own
 const PIN_DOCTOR = "bruno silencio";
 const PIN_SECRETARY = "1234";
+const CODE2_DOCTOR = "7788";
+const CODE2_SECRETARY = "5566";
 const ROLE_KEY = "cabinet_role_v1";
 
 type Role = "doctor" | "secretary";
@@ -232,22 +234,48 @@ function Home() {
 
 function PinGate({ onLogin }: { onLogin: (r: Role) => void }) {
   const [pin, setPin] = useState("");
+  const [code2, setCode2] = useState("");
+  const [step, setStep] = useState<1 | 2>(1);
+  const [pending, setPending] = useState<Role | null>(null);
   const [shake, setShake] = useState(false);
 
-  const submit = (e: React.FormEvent) => {
+  const fail = (msg: string) => {
+    setShake(true);
+    setTimeout(() => setShake(false), 400);
+    toast.error(msg);
+  };
+
+  const submitStep1 = (e: React.FormEvent) => {
     e.preventDefault();
     if (pin === PIN_DOCTOR) {
-      toast.success("Bienvenue Dr. Sameh 🌷");
-      onLogin("doctor");
+      setPending("doctor");
+      setStep(2);
     } else if (pin === PIN_SECRETARY) {
-      toast.success("Bienvenue 🌸");
-      onLogin("secretary");
+      setPending("secretary");
+      setStep(2);
     } else {
-      setShake(true);
-      setTimeout(() => setShake(false), 400);
-      toast.error("Code PIN incorrect");
+      fail("Code d'accès incorrect");
       setPin("");
     }
+  };
+
+  const submitStep2 = (e: React.FormEvent) => {
+    e.preventDefault();
+    const expected = pending === "doctor" ? CODE2_DOCTOR : CODE2_SECRETARY;
+    if (code2.trim() === expected && pending) {
+      toast.success(pending === "doctor" ? "Bienvenue Dr. Sameh 🌿" : "Bienvenue 🌸");
+      onLogin(pending);
+    } else {
+      fail("Code de vérification incorrect");
+      setCode2("");
+    }
+  };
+
+  const reset = () => {
+    setStep(1);
+    setPending(null);
+    setPin("");
+    setCode2("");
   };
 
   return (
@@ -264,30 +292,63 @@ function PinGate({ onLogin }: { onLogin: (r: Role) => void }) {
           <img src={logoAsset.url} alt="Logo Dr. Sameh Aissa" className="w-full h-full object-contain" />
         </div>
         <h1 className="text-xl font-bold">Dr. Sameh Aissa</h1>
-        <p className="text-sm opacity-95 mt-1">Entrez votre code PIN pour continuer</p>
+        <p className="text-sm opacity-95 mt-1">
+          {step === 1 ? "Étape 1 / 2 · Entrez votre code d'accès" : "Étape 2 / 2 · Code de vérification"}
+        </p>
       </div>
 
-      <form onSubmit={submit} className="bg-card rounded-3xl p-5 border border-border flex flex-col gap-4 shadow-sm">
-        <input
-          type="password"
-          
-          autoFocus
-          value={pin}
-          onChange={(e) => setPin(e.target.value)}
-          placeholder="Code d'accès"
-          className="cute-input text-center text-lg tracking-widest font-bold"
-        />
-        <button
-          type="submit"
-          className="py-3.5 rounded-2xl text-white font-semibold shadow-[var(--shadow-cute)] transition-transform active:scale-[0.98]"
-          style={{ backgroundImage: "var(--gradient-primary)" }}
-        >
-          Se connecter
-        </button>
-        <p className="text-xs text-muted-foreground text-center">
-          Docteur & Secrétaire ont chacun leur code
-        </p>
-      </form>
+      <div className="flex items-center gap-2 justify-center">
+        <span className={`h-2 w-10 rounded-full ${step >= 1 ? "bg-primary" : "bg-muted"}`} />
+        <span className={`h-2 w-10 rounded-full ${step === 2 ? "bg-primary" : "bg-muted"}`} />
+      </div>
+
+      {step === 1 ? (
+        <form onSubmit={submitStep1} className="bg-card rounded-3xl p-5 border border-border flex flex-col gap-4 shadow-sm">
+          <input
+            type="password"
+            autoFocus
+            value={pin}
+            onChange={(e) => setPin(e.target.value)}
+            placeholder="Code d'accès"
+            className="cute-input text-center text-lg tracking-widest font-bold"
+          />
+          <button
+            type="submit"
+            className="py-3.5 rounded-2xl text-white font-semibold shadow-[var(--shadow-cute)] transition-transform active:scale-[0.98]"
+            style={{ backgroundImage: "var(--gradient-primary)" }}
+          >
+            Continuer
+          </button>
+          <p className="text-xs text-muted-foreground text-center">
+            Docteur &amp; Secrétaire ont chacun leur code
+          </p>
+        </form>
+      ) : (
+        <form onSubmit={submitStep2} className="bg-card rounded-3xl p-5 border border-border flex flex-col gap-4 shadow-sm">
+          <p className="text-sm text-center text-muted-foreground">
+            Accès <span className="font-semibold text-foreground">{pending === "doctor" ? "Docteur" : "Secrétaire"}</span> — entrez le 2ᵉ code
+          </p>
+          <input
+            type="password"
+            autoFocus
+            value={code2}
+            onChange={(e) => setCode2(e.target.value)}
+            placeholder="Code de vérification"
+            className="cute-input text-center text-lg tracking-widest font-bold"
+          />
+          <button
+            type="submit"
+            className="py-3.5 rounded-2xl text-white font-semibold shadow-[var(--shadow-cute)] transition-transform active:scale-[0.98]"
+            style={{ backgroundImage: "var(--gradient-primary)" }}
+          >
+            Se connecter
+          </button>
+          <button type="button" onClick={reset} className="text-xs text-muted-foreground underline">
+            Retour
+          </button>
+        </form>
+      )}
+
 
       <style>{`
         .cute-input {
