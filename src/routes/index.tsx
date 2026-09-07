@@ -1532,15 +1532,26 @@ function EditAppointment({ appt, onClose }: { appt: Appointment; onClose: () => 
       <div className="grid grid-cols-2 gap-3">
         <Field icon={<Phone className="w-4 h-4" />} label="Téléphone">
           <input
+            type="tel"
+            inputMode="tel"
             value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            onChange={(e) => setForm({ ...form, phone: phoneOnly(e.target.value) })}
             className="cute-input"
           />
         </Field>
-        <Field icon={<Phone className="w-4 h-4" />} label="Deuxième numéro">
+        <Field icon={<Phone className="w-4 h-4" />} label="Deuxième numéro (chiffres)">
           <input
+            type="tel"
+            inputMode="tel"
             value={form.phone2}
-            onChange={(e) => setForm({ ...form, phone2: e.target.value })}
+            onChange={(e) => setForm({ ...form, phone2: phoneOnly(e.target.value) })}
+            className="cute-input"
+          />
+        </Field>
+        <Field icon={<User className="w-4 h-4" />} label="Nom de la personne (2e numéro)">
+          <input
+            value={form.phone2_name}
+            onChange={(e) => setForm({ ...form, phone2_name: e.target.value })}
             className="cute-input"
           />
         </Field>
@@ -1565,10 +1576,28 @@ function EditAppointment({ appt, onClose }: { appt: Appointment; onClose: () => 
             className="cute-input"
           />
         </Field>
+        <Field icon={<MapPin className="w-4 h-4" />} label="Adresse">
+          <input
+            value={form.address}
+            onChange={(e) => setForm({ ...form, address: e.target.value })}
+            className="cute-input"
+          />
+        </Field>
+        <Field icon={<UserCheck className="w-4 h-4" />} label="Profession">
+          <input
+            value={form.profession}
+            onChange={(e) => setForm({ ...form, profession: e.target.value })}
+            className="cute-input"
+          />
+        </Field>
       </div>
+      <Field icon={<Users className="w-4 h-4" />} label="État civil">
+        <MaritalPicker value={marital} onChange={setMarital} />
+      </Field>
       <Field icon={<ShieldCheck className="w-4 h-4" />} label="Couverture sociale">
         <CoveragePicker value={coverage} onChange={setCoverage} />
       </Field>
+
       <div className="grid grid-cols-2 gap-3">
         <Field icon={<Calendar className="w-4 h-4" />} label="Date">
           <input
