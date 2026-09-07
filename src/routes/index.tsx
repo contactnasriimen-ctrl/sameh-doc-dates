@@ -1006,6 +1006,13 @@ type Appointment = {
   social_coverage: string | null;
   phone2: string | null;
   patient_code: string | null;
+  marital_status: string | null;
+  profession: string | null;
+  phone2_name: string | null;
+  habit_tobacco: string | null;
+  habit_alcohol: string | null;
+  habit_sexual: string | null;
+
   created_at: string;
 };
 
