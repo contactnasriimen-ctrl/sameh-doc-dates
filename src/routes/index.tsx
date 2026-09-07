@@ -121,7 +121,7 @@ function ReferralPicker({
 }
 
 const CLINICAL_FIELDS = [
-  { key: "address", label: "Adresse", placeholder: "Ville, rue..." },
+  { key: "reason", label: "Motif de consultation", placeholder: "Motif principal de la visite..." },
   { key: "atcd", label: "ATCD (antécédents)", placeholder: "Antécédents médicaux, chirurgicaux, familiaux..." },
   { key: "illness_history", label: "Histoire de la maladie", placeholder: "Début, évolution des symptômes..." },
   { key: "physical_exam", label: "Examen physique", placeholder: "TA, poids, auscultation..." },
@@ -131,6 +131,25 @@ const CLINICAL_FIELDS = [
   { key: "evolution", label: "Évolution", placeholder: "Réponse au traitement, suivi..." },
   { key: "private_notes", label: "Notes", placeholder: "Observations..." },
 ] as const;
+
+const HABIT_FIELDS = [
+  { key: "habit_tobacco", label: "Tabac", placeholder: "Ex. 10 cigarettes/jour depuis 5 ans" },
+  { key: "habit_alcohol", label: "Alcool", placeholder: "Ex. occasionnel, sevré depuis 2020" },
+  { key: "habit_sexual", label: "Rapports sexuels", placeholder: "Ex. contraception, remarques..." },
+] as const;
+
+const CLINICAL_ALL = [...CLINICAL_FIELDS, ...HABIT_FIELDS] as ReadonlyArray<{
+  key: string;
+  label: string;
+  placeholder: string;
+}>;
+
+
+const MARITAL_STATUS = ["Célibataire", "Marié(e)", "Divorcé(e)", "Veuf/Veuve"] as const;
+
+// Les numéros n'acceptent que des chiffres et les symboles téléphoniques
+const phoneOnly = (v: string) => v.replace(/[^\d+\s().-]/g, "");
+
 
 function VisitTypePicker({
   value, onChange,
@@ -461,6 +480,57 @@ function CoveragePicker({ value, onChange }: { value: string | null; onChange: (
   );
 }
 
+function MaritalPicker({ value, onChange }: { value: string | null; onChange: (v: string | null) => void }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {MARITAL_STATUS.map((c) => {
+        const active = value === c;
+        return (
+          <button
+            key={c}
+            type="button"
+            onClick={() => onChange(active ? null : c)}
+            className={`px-3 py-2 rounded-2xl text-xs font-semibold border transition-all active:scale-95 ${
+              active
+                ? "bg-primary text-primary-foreground border-primary shadow-[var(--shadow-cute)]"
+                : "bg-muted text-muted-foreground border-transparent hover:text-foreground"
+            }`}
+          >
+            {c}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function HabitsBlock({
+  value, onChange,
+}: { value: Record<string, string>; onChange: (v: Record<string, string>) => void }) {
+  return (
+    <div className="rounded-2xl border border-border p-4 flex flex-col gap-3 bg-muted/30">
+      <p className="text-[11px] font-bold text-primary uppercase tracking-wide">Habitudes</p>
+      <div className="grid gap-3 md:grid-cols-3">
+        {HABIT_FIELDS.map((f) => (
+          <label key={f.key} className="flex flex-col gap-1">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+              {f.label}
+            </span>
+            <textarea
+              value={value[f.key] ?? ""}
+              onChange={(e) => onChange({ ...value, [f.key]: e.target.value })}
+              placeholder={f.placeholder}
+              rows={2}
+              className="cute-input resize-none text-sm"
+            />
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
 const norm = (v: string) =>
   v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
@@ -584,12 +654,18 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
     patient_name: "",
     phone: "",
     phone2: "",
+    phone2_name: "",
     age: "",
     origin: "",
+    profession: "",
+    address: "",
     date: "",
     time: "",
+
   });
   const [coverage, setCoverage] = useState<string | null>(null);
+  const [marital, setMarital] = useState<string | null>(null);
+
   const [types, setTypes] = useState<string[]>([]);
   const [known, setKnown] = useState<string | null>(null);
   const [code, setCode] = useState<string>("");
@@ -618,16 +694,20 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
       patient_name: a.patient_name ?? "",
       phone: a.phone ?? "",
       phone2: a.phone2 ?? "",
+      phone2_name: a.phone2_name ?? "",
       age: a.age ?? "",
       origin: a.origin ?? "",
+      profession: a.profession ?? "",
+      address: a.address ?? "",
     }));
     setCoverage(a.social_coverage ?? null);
+    setMarital(a.marital_status ?? null);
     setCode(a.patient_code || makePatientCode(a.patient_name ?? ""));
     setTypes(a.visit_types ?? []);
     setSource(a.referral_source ?? null);
     setSourceDetail(a.referral_detail ?? "");
     setClinical({
-      address: a.address ?? "",
+      reason: a.reason ?? "",
       atcd: a.atcd ?? "",
       illness_history: a.illness_history ?? "",
       physical_exam: a.physical_exam ?? "",
@@ -636,18 +716,24 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
       treatment: a.treatment ?? "",
       evolution: a.evolution ?? "",
       private_notes: a.private_notes ?? "",
+      habit_tobacco: a.habit_tobacco ?? "",
+      habit_alcohol: a.habit_alcohol ?? "",
+      habit_sexual: a.habit_sexual ?? "",
     });
     setKnown(a.patient_name ?? null);
     toast.success("Patient déjà connu — infos remplies ✨");
   };
+
 
   const mutation = useMutation({
     mutationFn: (payload: Record<string, string | null>) => book({ data: payload }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["appointments"] });
       toast.success("Rendez-vous enregistré ! 🌷");
-      setForm({ patient_name: "", phone: "", phone2: "", age: "", origin: "", date: "", time: "" });
+      setForm({ patient_name: "", phone: "", phone2: "", phone2_name: "", age: "", origin: "", profession: "", address: "", date: "", time: "" });
       setCoverage(null);
+      setMarital(null);
+
       setCode("");
       setTypes([]);
       setSource(null);
@@ -671,8 +757,12 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
       patient_name: form.patient_name || null,
       phone: form.phone || null,
       phone2: form.phone2 || null,
+      phone2_name: form.phone2_name || null,
       age: form.age || null,
       origin: form.origin || null,
+      profession: form.profession || null,
+      address: form.address || null,
+      marital_status: marital,
       social_coverage: coverage,
       patient_code: code || makePatientCode(form.patient_name) || null,
       appointment_at: iso,
@@ -680,9 +770,10 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
       referral_source: source,
       referral_detail: source ? sourceDetail || null : null,
       ...Object.fromEntries(
-        CLINICAL_FIELDS.map((f) => [f.key, clinical[f.key]?.trim() ? clinical[f.key] : null]),
+        CLINICAL_ALL.map((f) => [f.key, clinical[f.key]?.trim() ? clinical[f.key] : null]),
       ),
     } as never);
+
   };
 
   return (
@@ -707,17 +798,29 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
         </Field>
         <Field icon={<Phone className="w-4 h-4" />} label="Téléphone">
           <input
+            type="tel"
+            inputMode="tel"
             value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            onChange={(e) => setForm({ ...form, phone: phoneOnly(e.target.value) })}
             placeholder="+216 ..."
             className="cute-input"
           />
         </Field>
-        <Field icon={<Phone className="w-4 h-4" />} label="Deuxième numéro">
+        <Field icon={<Phone className="w-4 h-4" />} label="Deuxième numéro (chiffres)">
           <input
+            type="tel"
+            inputMode="tel"
             value={form.phone2}
-            onChange={(e) => setForm({ ...form, phone2: e.target.value })}
+            onChange={(e) => setForm({ ...form, phone2: phoneOnly(e.target.value) })}
             placeholder="+216 ..."
+            className="cute-input"
+          />
+        </Field>
+        <Field icon={<User className="w-4 h-4" />} label="Nom de la personne (2e numéro)">
+          <input
+            value={form.phone2_name}
+            onChange={(e) => setForm({ ...form, phone2_name: e.target.value })}
+            placeholder="Ex. Son fils Ali"
             className="cute-input"
           />
         </Field>
@@ -745,9 +848,29 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
             className="cute-input"
           />
         </Field>
+        <Field icon={<MapPin className="w-4 h-4" />} label="Adresse">
+          <input
+            value={form.address}
+            onChange={(e) => setForm({ ...form, address: e.target.value })}
+            placeholder="Ville, rue..."
+            className="cute-input"
+          />
+        </Field>
+        <Field icon={<UserCheck className="w-4 h-4" />} label="Profession">
+          <input
+            value={form.profession}
+            onChange={(e) => setForm({ ...form, profession: e.target.value })}
+            placeholder="Ex. Enseignante"
+            className="cute-input"
+          />
+        </Field>
+        <Field icon={<Users className="w-4 h-4" />} label="État civil">
+          <MaritalPicker value={marital} onChange={setMarital} />
+        </Field>
         <Field icon={<ShieldCheck className="w-4 h-4" />} label="Couverture sociale">
           <CoveragePicker value={coverage} onChange={setCoverage} />
         </Field>
+
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -791,23 +914,27 @@ function BookForm({ onBooked }: { onBooked: () => void }) {
           {openClinical ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </button>
         {openClinical && (
-          <div className="p-4 grid gap-3 md:grid-cols-2">
-            {CLINICAL_FIELDS.map((f) => (
-              <label key={f.key} className="flex flex-col gap-1">
-                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-                  {f.label}
-                </span>
-                <textarea
-                  value={clinical[f.key] ?? ""}
-                  onChange={(e) => setClinical({ ...clinical, [f.key]: e.target.value })}
-                  placeholder={f.placeholder}
-                  rows={2}
-                  className="cute-input resize-none text-sm"
-                />
-              </label>
-            ))}
+          <div className="p-4 flex flex-col gap-3">
+            <div className="grid gap-3 md:grid-cols-2">
+              {CLINICAL_FIELDS.map((f) => (
+                <label key={f.key} className="flex flex-col gap-1">
+                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                    {f.label}
+                  </span>
+                  <textarea
+                    value={clinical[f.key] ?? ""}
+                    onChange={(e) => setClinical({ ...clinical, [f.key]: e.target.value })}
+                    placeholder={f.placeholder}
+                    rows={2}
+                    className="cute-input resize-none text-sm"
+                  />
+                </label>
+              ))}
+            </div>
+            <HabitsBlock value={clinical} onChange={setClinical} />
           </div>
         )}
+
       </div>
       <button
         type="submit"

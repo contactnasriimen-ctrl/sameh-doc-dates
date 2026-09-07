@@ -30,6 +30,12 @@ export const bookSchema = z.object({
   social_coverage: optText(60),
   phone2: optText(30),
   patient_code: optText(20),
+  marital_status: optText(40),
+  profession: optText(100),
+  phone2_name: optText(100),
+  habit_tobacco: optText(500),
+  habit_alcohol: optText(500),
+  habit_sexual: optText(500),
 });
 
 export const updateSchema = bookSchema.extend({ id: z.string().uuid() });
@@ -49,7 +55,14 @@ const EXTRA_KEYS = [
   "social_coverage",
   "phone2",
   "patient_code",
+  "marital_status",
+  "profession",
+  "phone2_name",
+  "habit_tobacco",
+  "habit_alcohol",
+  "habit_sexual",
 ] as const;
+
 
 export function extras(data: Record<string, unknown>) {
   const out: Record<string, unknown> = {};
