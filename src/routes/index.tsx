@@ -1470,10 +1470,14 @@ function EditAppointment({ appt, onClose }: { appt: Appointment; onClose: () => 
       : "",
     time: initialDt ? `${pad(initialDt.getHours())}:${pad(initialDt.getMinutes())}` : "",
     phone2: appt.phone2 ?? "",
+    phone2_name: appt.phone2_name ?? "",
     age: appt.age ?? "",
     origin: appt.origin ?? "",
+    address: appt.address ?? "",
+    profession: appt.profession ?? "",
     patient_code: appt.patient_code ?? "",
   });
+  const [marital, setMarital] = useState<string | null>(appt.marital_status ?? null);
   const [coverage, setCoverage] = useState<string | null>(appt.social_coverage ?? null);
   const [types, setTypes] = useState<string[]>(appt.visit_types ?? []);
   const [source, setSource] = useState<string | null>(appt.referral_source ?? null);
@@ -1491,10 +1495,15 @@ function EditAppointment({ appt, onClose }: { appt: Appointment; onClose: () => 
           phone: form.phone || null,
           appointment_at: iso,
           phone2: form.phone2 || null,
+          phone2_name: form.phone2_name || null,
           age: form.age || null,
           origin: form.origin || null,
+          address: form.address || null,
+          profession: form.profession || null,
+          marital_status: marital,
           social_coverage: coverage,
           patient_code: form.patient_code || makePatientCode(form.patient_name) || null,
+          reason: appt.reason,
           diagnosis: appt.diagnosis,
           treatment: appt.treatment,
           medical_history: appt.medical_history,
@@ -1503,12 +1512,14 @@ function EditAppointment({ appt, onClose }: { appt: Appointment; onClose: () => 
           visit_types: types,
           referral_source: source,
           referral_detail: source ? sourceDetail || null : null,
-          address: appt.address,
           atcd: appt.atcd,
           illness_history: appt.illness_history,
           physical_exam: appt.physical_exam,
           complementary_exam: appt.complementary_exam,
           evolution: appt.evolution,
+          habit_tobacco: appt.habit_tobacco,
+          habit_alcohol: appt.habit_alcohol,
+          habit_sexual: appt.habit_sexual,
         } as never,
       });
     },
@@ -1661,7 +1672,7 @@ function MedicalFile({ appt }: { appt: Appointment }) {
   const qc = useQueryClient();
   const update = useServerFn(updateAppointment);
   const [form, setForm] = useState<Record<string, string>>({
-    address: appt.address ?? "",
+    reason: appt.reason ?? "",
     atcd: appt.atcd ?? "",
     illness_history: appt.illness_history ?? "",
     physical_exam: appt.physical_exam ?? "",
@@ -1670,6 +1681,9 @@ function MedicalFile({ appt }: { appt: Appointment }) {
     treatment: appt.treatment ?? "",
     evolution: appt.evolution ?? "",
     private_notes: appt.private_notes ?? "",
+    habit_tobacco: appt.habit_tobacco ?? "",
+    habit_alcohol: appt.habit_alcohol ?? "",
+    habit_sexual: appt.habit_sexual ?? "",
     medical_history: appt.medical_history ?? "",
     allergies: appt.allergies ?? "",
   });
@@ -1683,8 +1697,12 @@ function MedicalFile({ appt }: { appt: Appointment }) {
           phone: appt.phone,
           appointment_at: appt.appointment_at,
           phone2: appt.phone2,
+          phone2_name: appt.phone2_name,
           age: appt.age,
           origin: appt.origin,
+          address: appt.address,
+          profession: appt.profession,
+          marital_status: appt.marital_status,
           social_coverage: appt.social_coverage,
           patient_code: appt.patient_code,
           visit_types: appt.visit_types ?? [],
@@ -1717,7 +1735,7 @@ function MedicalFile({ appt }: { appt: Appointment }) {
 
   return (
     <div className="p-4 bg-primary/5 border-t border-border flex flex-col gap-3">
-      {CLINICAL_FIELDS.map((f) => (
+      {CLINICAL_ALL.map((f) => (
         <div key={f.key}>{ta(f.key, f.label, f.placeholder)}</div>
       ))}
       {ta("allergies", "Allergies", "Médicaments, aliments...")}
