@@ -1735,7 +1735,7 @@ function MedicalFile({ appt }: { appt: Appointment }) {
 
   return (
     <div className="p-4 bg-primary/5 border-t border-border flex flex-col gap-3">
-      {CLINICAL_FIELDS.map((f) => (
+      {CLINICAL_ALL.map((f) => (
         <div key={f.key}>{ta(f.key, f.label, f.placeholder)}</div>
       ))}
       {ta("allergies", "Allergies", "Médicaments, aliments...")}
