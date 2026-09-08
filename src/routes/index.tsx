@@ -25,7 +25,7 @@ const CODE2_SECRETARY = "5566";
 const ROLE_KEY = "cabinet_role_v1";
 
 type Role = "doctor" | "secretary";
-type Tab = "book" | "history" | "stats" | "joy";
+type Tab = "book" | "records" | "history" | "stats" | "joy";
 
 export const VISIT_TYPES = [
   { key: "classique", label: "Consultation classique", short: "Classique", emoji: "🩺" },
@@ -237,7 +237,8 @@ function Home() {
           <>
             <Header role={role} onLogout={logout} />
             <Tabs tab={tab} setTab={setTab} role={role} />
-            {tab === "book" && <BookAndRecords role={role} onBooked={() => setTab("history")} />}
+            {tab === "book" && <BookForm onBooked={() => setTab("history")} />}
+            {tab === "records" && <PatientRecords role={role} />}
             {tab === "history" && <HistoryList role={role} />}
             {tab === "stats" && <StatsDashboard />}
             {tab === "joy" && role === "doctor" && <JoyChat />}
@@ -439,7 +440,10 @@ function Tabs({ tab, setTab, role }: { tab: Tab; setTab: (t: Tab) => void; role:
   return (
     <div className="flex gap-1.5 p-1.5 bg-white/60 backdrop-blur rounded-3xl border border-border overflow-x-auto">
       <button className={btn(tab === "book")} onClick={() => setTab("book")}>
-        <FolderHeart className="w-4 h-4" /> Fiches & Nouveau
+        <Plus className="w-4 h-4" /> Nouveau
+      </button>
+      <button className={btn(tab === "records")} onClick={() => setTab("records")}>
+        <FolderHeart className="w-4 h-4" /> Fiches
       </button>
       <button className={btn(tab === "history")} onClick={() => setTab("history")}>
         <History className="w-4 h-4" /> RDV
@@ -625,26 +629,6 @@ function PatientPicker({
   );
 }
 
-function BookAndRecords({ role, onBooked }: { role: Role; onBooked: () => void }) {
-  const [view, setView] = useState<"new" | "records">("new");
-  const seg = (active: boolean) =>
-    `flex-1 py-2.5 rounded-2xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
-      active ? "bg-white text-primary shadow-[var(--shadow-cute)]" : "text-muted-foreground hover:text-foreground"
-    }`;
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex gap-1.5 p-1.5 bg-white/60 backdrop-blur rounded-3xl border border-border">
-        <button className={seg(view === "new")} onClick={() => setView("new")}>
-          <Plus className="w-4 h-4" /> Nouveau RDV
-        </button>
-        <button className={seg(view === "records")} onClick={() => setView("records")}>
-          <FolderHeart className="w-4 h-4" /> Fiches patients
-        </button>
-      </div>
-      {view === "new" ? <BookForm onBooked={onBooked} /> : <PatientRecords role={role} />}
-    </div>
-  );
-}
 
 function BookForm({ onBooked }: { onBooked: () => void }) {
   const qc = useQueryClient();
