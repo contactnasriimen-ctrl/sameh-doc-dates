@@ -440,7 +440,10 @@ function Tabs({ tab, setTab, role }: { tab: Tab; setTab: (t: Tab) => void; role:
   return (
     <div className="flex gap-1.5 p-1.5 bg-white/60 backdrop-blur rounded-3xl border border-border overflow-x-auto">
       <button className={btn(tab === "book")} onClick={() => setTab("book")}>
-        <FolderHeart className="w-4 h-4" /> Fiches & Nouveau
+        <Plus className="w-4 h-4" /> Nouveau
+      </button>
+      <button className={btn(tab === "records")} onClick={() => setTab("records")}>
+        <FolderHeart className="w-4 h-4" /> Fiches
       </button>
       <button className={btn(tab === "history")} onClick={() => setTab("history")}>
         <History className="w-4 h-4" /> RDV
