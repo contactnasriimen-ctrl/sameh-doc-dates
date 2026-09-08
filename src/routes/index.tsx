@@ -1672,7 +1672,7 @@ function MedicalFile({ appt }: { appt: Appointment }) {
   const qc = useQueryClient();
   const update = useServerFn(updateAppointment);
   const [form, setForm] = useState<Record<string, string>>({
-    address: appt.address ?? "",
+    reason: appt.reason ?? "",
     atcd: appt.atcd ?? "",
     illness_history: appt.illness_history ?? "",
     physical_exam: appt.physical_exam ?? "",
@@ -1681,6 +1681,9 @@ function MedicalFile({ appt }: { appt: Appointment }) {
     treatment: appt.treatment ?? "",
     evolution: appt.evolution ?? "",
     private_notes: appt.private_notes ?? "",
+    habit_tobacco: appt.habit_tobacco ?? "",
+    habit_alcohol: appt.habit_alcohol ?? "",
+    habit_sexual: appt.habit_sexual ?? "",
     medical_history: appt.medical_history ?? "",
     allergies: appt.allergies ?? "",
   });
