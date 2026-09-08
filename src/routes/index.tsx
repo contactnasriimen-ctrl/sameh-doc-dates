@@ -25,7 +25,7 @@ const CODE2_SECRETARY = "5566";
 const ROLE_KEY = "cabinet_role_v1";
 
 type Role = "doctor" | "secretary";
-type Tab = "book" | "history" | "stats" | "joy";
+type Tab = "book" | "records" | "history" | "stats" | "joy";
 
 export const VISIT_TYPES = [
   { key: "classique", label: "Consultation classique", short: "Classique", emoji: "🩺" },
