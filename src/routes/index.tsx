@@ -1470,10 +1470,14 @@ function EditAppointment({ appt, onClose }: { appt: Appointment; onClose: () => 
       : "",
     time: initialDt ? `${pad(initialDt.getHours())}:${pad(initialDt.getMinutes())}` : "",
     phone2: appt.phone2 ?? "",
+    phone2_name: appt.phone2_name ?? "",
     age: appt.age ?? "",
     origin: appt.origin ?? "",
+    address: appt.address ?? "",
+    profession: appt.profession ?? "",
     patient_code: appt.patient_code ?? "",
   });
+  const [marital, setMarital] = useState<string | null>(appt.marital_status ?? null);
   const [coverage, setCoverage] = useState<string | null>(appt.social_coverage ?? null);
   const [types, setTypes] = useState<string[]>(appt.visit_types ?? []);
   const [source, setSource] = useState<string | null>(appt.referral_source ?? null);
