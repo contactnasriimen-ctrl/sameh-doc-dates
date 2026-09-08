@@ -237,7 +237,8 @@ function Home() {
           <>
             <Header role={role} onLogout={logout} />
             <Tabs tab={tab} setTab={setTab} role={role} />
-            {tab === "book" && <BookAndRecords role={role} onBooked={() => setTab("history")} />}
+            {tab === "book" && <BookForm onBooked={() => setTab("history")} />}
+            {tab === "records" && <PatientRecords role={role} />}
             {tab === "history" && <HistoryList role={role} />}
             {tab === "stats" && <StatsDashboard />}
             {tab === "joy" && role === "doctor" && <JoyChat />}
