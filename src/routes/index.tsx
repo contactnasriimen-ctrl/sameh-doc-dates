@@ -629,26 +629,6 @@ function PatientPicker({
   );
 }
 
-function BookAndRecords({ role, onBooked }: { role: Role; onBooked: () => void }) {
-  const [view, setView] = useState<"new" | "records">("new");
-  const seg = (active: boolean) =>
-    `flex-1 py-2.5 rounded-2xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
-      active ? "bg-white text-primary shadow-[var(--shadow-cute)]" : "text-muted-foreground hover:text-foreground"
-    }`;
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex gap-1.5 p-1.5 bg-white/60 backdrop-blur rounded-3xl border border-border">
-        <button className={seg(view === "new")} onClick={() => setView("new")}>
-          <Plus className="w-4 h-4" /> Nouveau RDV
-        </button>
-        <button className={seg(view === "records")} onClick={() => setView("records")}>
-          <FolderHeart className="w-4 h-4" /> Fiches patients
-        </button>
-      </div>
-      {view === "new" ? <BookForm onBooked={onBooked} /> : <PatientRecords role={role} />}
-    </div>
-  );
-}
 
 function BookForm({ onBooked }: { onBooked: () => void }) {
   const qc = useQueryClient();
