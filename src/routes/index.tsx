@@ -591,7 +591,11 @@ function PatientPicker({
             type="button"
             onClick={() => setLetter(letter === l ? null : l)}
             className={`w-7 h-7 rounded-lg text-[11px] font-bold transition-colors ${
-              letter === l ? "bg-primary text-primary-foreground" : "bg-white text-foreground/70 hover:text-primary"
+              letter === l
+                ? "bg-primary text-primary-foreground"
+                : available.has(l)
+                  ? "bg-white text-foreground/70 hover:text-primary"
+                  : "bg-white/50 text-muted-foreground/40"
             }`}
           >
             {l}
