@@ -538,6 +538,8 @@ function HabitsBlock({
 const norm = (v: string) =>
   v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
+const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
 // Recherche intelligente : accents ignorés, initiales, index alphabétique
 function smartMatch(name: string, code: string, q: string) {
   const n = norm(name);
@@ -561,7 +563,8 @@ function PatientPicker({
   const sorted = [...patients].sort((a, b) =>
     (a.patient_name ?? "").localeCompare(b.patient_name ?? "", "fr"),
   );
-  const letters = [...new Set(sorted.map((a) => norm(a.patient_name ?? "")[0]?.toUpperCase() ?? "#"))];
+  const available = new Set(sorted.map((a) => norm(a.patient_name ?? "")[0]?.toUpperCase() ?? "#"));
+  const letters = ALPHABET;
   const results = sorted.filter((a) => {
     const name = a.patient_name ?? "";
     if (letter && norm(name)[0]?.toUpperCase() !== letter) return false;
@@ -590,7 +593,11 @@ function PatientPicker({
             type="button"
             onClick={() => setLetter(letter === l ? null : l)}
             className={`w-7 h-7 rounded-lg text-[11px] font-bold transition-colors ${
-              letter === l ? "bg-primary text-primary-foreground" : "bg-white text-foreground/70 hover:text-primary"
+              letter === l
+                ? "bg-primary text-primary-foreground"
+                : available.has(l)
+                  ? "bg-white text-foreground/70 hover:text-primary"
+                  : "bg-white/50 text-muted-foreground/40"
             }`}
           >
             {l}
@@ -1782,7 +1789,8 @@ function PatientRecords({ role }: { role: Role }) {
     return <div className="bg-card rounded-3xl p-8 text-center text-muted-foreground">Chargement...</div>;
   }
   const groups = groupByPatient((data ?? []) as Appointment[]);
-  const letters = [...new Set(groups.map((g) => norm(g.name)[0]?.toUpperCase() ?? "#"))].sort();
+  const available = new Set(groups.map((g) => norm(g.name)[0]?.toUpperCase() ?? "#"));
+  const letters = ALPHABET;
   const filtered = groups
     .filter((g) => (letter ? norm(g.name)[0]?.toUpperCase() === letter : true))
     .filter((g) => smartMatch(g.name, g.code, search))
@@ -1816,7 +1824,11 @@ function PatientRecords({ role }: { role: Role }) {
               type="button"
               onClick={() => setLetter(letter === l ? null : l)}
               className={`w-7 h-7 rounded-lg text-[11px] font-bold transition-colors ${
-                letter === l ? "bg-primary text-primary-foreground" : "bg-muted text-foreground/70 hover:text-primary"
+                letter === l
+                  ? "bg-primary text-primary-foreground"
+                  : available.has(l)
+                    ? "bg-muted text-foreground/70 hover:text-primary"
+                    : "bg-muted/40 text-muted-foreground/40"
               }`}
             >
               {l}
