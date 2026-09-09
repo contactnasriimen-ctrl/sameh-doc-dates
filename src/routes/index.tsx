@@ -538,6 +538,8 @@ function HabitsBlock({
 const norm = (v: string) =>
   v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
+const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
 // Recherche intelligente : accents ignorés, initiales, index alphabétique
 function smartMatch(name: string, code: string, q: string) {
   const n = norm(name);
