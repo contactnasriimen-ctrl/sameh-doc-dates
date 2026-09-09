@@ -561,7 +561,8 @@ function PatientPicker({
   const sorted = [...patients].sort((a, b) =>
     (a.patient_name ?? "").localeCompare(b.patient_name ?? "", "fr"),
   );
-  const letters = [...new Set(sorted.map((a) => norm(a.patient_name ?? "")[0]?.toUpperCase() ?? "#"))];
+  const available = new Set(sorted.map((a) => norm(a.patient_name ?? "")[0]?.toUpperCase() ?? "#"));
+  const letters = ALPHABET;
   const results = sorted.filter((a) => {
     const name = a.patient_name ?? "";
     if (letter && norm(name)[0]?.toUpperCase() !== letter) return false;
