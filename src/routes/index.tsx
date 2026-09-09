@@ -1789,7 +1789,8 @@ function PatientRecords({ role }: { role: Role }) {
     return <div className="bg-card rounded-3xl p-8 text-center text-muted-foreground">Chargement...</div>;
   }
   const groups = groupByPatient((data ?? []) as Appointment[]);
-  const letters = [...new Set(groups.map((g) => norm(g.name)[0]?.toUpperCase() ?? "#"))].sort();
+  const available = new Set(groups.map((g) => norm(g.name)[0]?.toUpperCase() ?? "#"));
+  const letters = ALPHABET;
   const filtered = groups
     .filter((g) => (letter ? norm(g.name)[0]?.toUpperCase() === letter : true))
     .filter((g) => smartMatch(g.name, g.code, search))
