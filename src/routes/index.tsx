@@ -1824,7 +1824,11 @@ function PatientRecords({ role }: { role: Role }) {
               type="button"
               onClick={() => setLetter(letter === l ? null : l)}
               className={`w-7 h-7 rounded-lg text-[11px] font-bold transition-colors ${
-                letter === l ? "bg-primary text-primary-foreground" : "bg-muted text-foreground/70 hover:text-primary"
+                letter === l
+                  ? "bg-primary text-primary-foreground"
+                  : available.has(l)
+                    ? "bg-muted text-foreground/70 hover:text-primary"
+                    : "bg-muted/40 text-muted-foreground/40"
               }`}
             >
               {l}
