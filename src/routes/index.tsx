@@ -8,13 +8,14 @@ import {
   FolderHeart, ArrowLeft, Search, Pill, AlertTriangle, ClipboardList, NotebookPen,
   Pencil, X, MessageCircleHeart, BarChart3, Users, CalendarCheck, Tag, UserCheck,
   MapPin, Share2, Activity, TrendingUp, Microscope, Filter, SlidersHorizontal,
-  Hash, Cake, ShieldCheck,
+  Hash, Cake, ShieldCheck, MessageCircle,
 } from "lucide-react";
 import {
   bookAppointment, listAppointments, deleteAppointment, updateAppointment,
 } from "@/lib/appointments.functions";
 import { toast, Toaster } from "sonner";
 import { JoyChat } from "@/components/JoyChat";
+import { ClinicalFiles } from "@/components/ClinicalFiles";
 import logoAsset from "@/assets/dr-sameh-logo.png.asset.json";
 
 // Change these PINs to your own
