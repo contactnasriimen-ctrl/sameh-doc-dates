@@ -1757,6 +1757,7 @@ function MedicalFile({ appt }: { appt: Appointment }) {
         rows={2}
         className="cute-input resize-none text-sm"
       />
+      <ClinicalFiles appointmentId={appt.id} fieldKey={key} />
     </label>
   );
 
