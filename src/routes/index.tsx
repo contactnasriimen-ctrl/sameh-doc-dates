@@ -1398,6 +1398,14 @@ function AppointmentCard({
             </a>
           )}
 
+          {(appt.phone || appt.phone2) && (
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              <WhatsAppButton phone={appt.phone ?? appt.phone2 ?? ""} />
+            </div>
+          )}
+
+
+
           <VisitTypeBadges types={appt.visit_types ?? []} />
 
           {appt.referral_source && (
