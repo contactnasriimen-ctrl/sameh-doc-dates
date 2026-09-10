@@ -151,6 +151,33 @@ const MARITAL_STATUS = ["Célibataire", "Marié(e)", "Divorcé(e)", "Veuf/Veuve"
 // Les numéros n'acceptent que des chiffres et les symboles téléphoniques
 const phoneOnly = (v: string) => v.replace(/[^\d+\s().-]/g, "");
 
+// Lien WhatsApp (indicatif Tunisie +216 par défaut)
+export function waLink(phone: string): string {
+  const d = (phone ?? "").replace(/\D/g, "");
+  if (!d) return "";
+  const full = d.length === 8 ? `216${d}` : d.replace(/^00/, "");
+  return `https://wa.me/${full}`;
+}
+
+function WhatsAppButton({ phone, dark }: { phone: string; dark?: boolean }) {
+  const href = waLink(phone);
+  if (!href) return null;
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`text-xs inline-flex items-center gap-1.5 font-semibold rounded-full px-2.5 py-1 active:scale-95 transition-transform ${
+        dark ? "bg-white/20 text-white" : "bg-[#25D366]/15 text-[#128C3F]"
+      }`}
+    >
+      <MessageCircle className="w-3 h-3" /> WhatsApp
+    </a>
+  );
+}
+
+
+
 
 function VisitTypePicker({
   value, onChange,
