@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      appointment_files: {
+        Row: {
+          appointment_id: string
+          created_at: string
+          field_key: string
+          file_name: string
+          file_path: string
+          id: string
+        }
+        Insert: {
+          appointment_id: string
+          created_at?: string
+          field_key: string
+          file_name: string
+          file_path: string
+          id?: string
+        }
+        Update: {
+          appointment_id?: string
+          created_at?: string
+          field_key?: string
+          file_name?: string
+          file_path?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_files_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       appointments: {
         Row: {
           address: string | null
