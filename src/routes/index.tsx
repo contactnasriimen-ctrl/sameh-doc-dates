@@ -2038,6 +2038,11 @@ function PatientDetail({ group, onBack }: { group: PatientGroup; onBack: () => v
                 <Phone className="w-3 h-3" /> {master.phone}
               </a>
             )}
+            {(master.phone || master.phone2) && (
+              <div className="mt-1.5">
+                <WhatsAppButton phone={master.phone ?? master.phone2 ?? ""} dark />
+              </div>
+            )}
           </div>
         </div>
         <div className="mt-4 grid grid-cols-3 gap-2 text-center">
