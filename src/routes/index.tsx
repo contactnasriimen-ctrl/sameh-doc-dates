@@ -2158,6 +2158,7 @@ function PatientDetail({ group, onBack }: { group: PatientGroup; onBack: () => v
                 rows={2}
                 className="cute-input resize-none text-sm"
               />
+              <ClinicalFiles appointmentId={master.id} fieldKey={f.key} />
             </label>
           ))}
           <label className="flex flex-col gap-1">
