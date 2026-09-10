@@ -8,13 +8,14 @@ import {
   FolderHeart, ArrowLeft, Search, Pill, AlertTriangle, ClipboardList, NotebookPen,
   Pencil, X, MessageCircleHeart, BarChart3, Users, CalendarCheck, Tag, UserCheck,
   MapPin, Share2, Activity, TrendingUp, Microscope, Filter, SlidersHorizontal,
-  Hash, Cake, ShieldCheck,
+  Hash, Cake, ShieldCheck, MessageCircle,
 } from "lucide-react";
 import {
   bookAppointment, listAppointments, deleteAppointment, updateAppointment,
 } from "@/lib/appointments.functions";
 import { toast, Toaster } from "sonner";
 import { JoyChat } from "@/components/JoyChat";
+import { ClinicalFiles } from "@/components/ClinicalFiles";
 import logoAsset from "@/assets/dr-sameh-logo.png.asset.json";
 
 // Change these PINs to your own
@@ -149,6 +150,33 @@ const MARITAL_STATUS = ["Célibataire", "Marié(e)", "Divorcé(e)", "Veuf/Veuve"
 
 // Les numéros n'acceptent que des chiffres et les symboles téléphoniques
 const phoneOnly = (v: string) => v.replace(/[^\d+\s().-]/g, "");
+
+// Lien WhatsApp (indicatif Tunisie +216 par défaut)
+export function waLink(phone: string): string {
+  const d = (phone ?? "").replace(/\D/g, "");
+  if (!d) return "";
+  const full = d.length === 8 ? `216${d}` : d.replace(/^00/, "");
+  return `https://wa.me/${full}`;
+}
+
+function WhatsAppButton({ phone, dark }: { phone: string; dark?: boolean }) {
+  const href = waLink(phone);
+  if (!href) return null;
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`text-xs inline-flex items-center gap-1.5 font-semibold rounded-full px-2.5 py-1 active:scale-95 transition-transform ${
+        dark ? "bg-white/20 text-white" : "bg-[#25D366]/15 text-[#128C3F]"
+      }`}
+    >
+      <MessageCircle className="w-3 h-3" /> WhatsApp
+    </a>
+  );
+}
+
+
 
 
 function VisitTypePicker({
@@ -1370,6 +1398,14 @@ function AppointmentCard({
             </a>
           )}
 
+          {(appt.phone || appt.phone2) && (
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              <WhatsAppButton phone={appt.phone ?? appt.phone2 ?? ""} />
+            </div>
+          )}
+
+
+
           <VisitTypeBadges types={appt.visit_types ?? []} />
 
           {appt.referral_source && (
@@ -1721,6 +1757,7 @@ function MedicalFile({ appt }: { appt: Appointment }) {
         rows={2}
         className="cute-input resize-none text-sm"
       />
+      <ClinicalFiles appointmentId={appt.id} fieldKey={key} />
     </label>
   );
 
@@ -2001,6 +2038,11 @@ function PatientDetail({ group, onBack }: { group: PatientGroup; onBack: () => v
                 <Phone className="w-3 h-3" /> {master.phone}
               </a>
             )}
+            {(master.phone || master.phone2) && (
+              <div className="mt-1.5">
+                <WhatsAppButton phone={master.phone ?? master.phone2 ?? ""} dark />
+              </div>
+            )}
           </div>
         </div>
         <div className="mt-4 grid grid-cols-3 gap-2 text-center">
@@ -2116,6 +2158,7 @@ function PatientDetail({ group, onBack }: { group: PatientGroup; onBack: () => v
                 rows={2}
                 className="cute-input resize-none text-sm"
               />
+              <ClinicalFiles appointmentId={master.id} fieldKey={f.key} />
             </label>
           ))}
           <label className="flex flex-col gap-1">
